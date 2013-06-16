@@ -10,13 +10,13 @@ var obj, moduleOpts = {
       }
     };
 
-    Foo = {
+    window.Foo = {
       bar: {
         baz: {}
       }
     };
 
-    $foo = {
+    window.$foo = {
       bar: {
         baz: {}
       }
@@ -24,8 +24,9 @@ var obj, moduleOpts = {
   },
 
   teardown: function() {
-    obj = null;
-    Foo = null;
+    obj = undefined;
+    window.Foo = undefined;
+    window.$foo = undefined;
   }
 };
 
@@ -60,10 +61,6 @@ test('[obj, this.foo] -> [obj, foo]', function() {
 });
 
 test('[obj, this.foo.bar] -> [obj, foo.bar]', function() {
-  deepEqual(Ember.normalizeTuple(obj, 'this.foo.bar'), [obj, 'foo.bar']);
-});
-
-test('[obj, .foo.bar] -> [obj, foo.bar]', function() {
   deepEqual(Ember.normalizeTuple(obj, 'this.foo.bar'), [obj, 'foo.bar']);
 });
 

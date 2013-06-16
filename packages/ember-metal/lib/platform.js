@@ -17,13 +17,23 @@ var platform = Ember.platform = {};
 
 
 /**
-  Identical to Object.create().  Implements if not available natively.
+  Identical to `Object.create()`. Implements if not available natively.
+
   @method create
   @for Ember
 */
 Ember.create = Object.create;
 
-if (!Ember.create) {
+// IE8 has Object.create but it couldn't treat property descripters.
+if (Ember.create) {
+  if (Ember.create({a: 1}, {a: {value: 2}}).a !== 2) {
+    Ember.create = null;
+  }
+}
+
+// STUB_OBJECT_CREATE allows us to override other libraries that stub
+// Object.create different than we would prefer
+if (!Ember.create || Ember.ENV.STUB_OBJECT_CREATE) {
   var K = function() {};
 
   Ember.create = function(obj, props) {
@@ -118,7 +128,7 @@ if (defineProperty) {
 */
 
 /**
-  Identical to Object.defineProperty().  Implements as much functionality
+  Identical to `Object.defineProperty()`. Implements as much functionality
   as possible if not available natively.
 
   @method defineProperty

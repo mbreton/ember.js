@@ -80,7 +80,7 @@ testBoth('suspending an observer should not fire during callback', function(get,
   }
 
   set(obj, 'foo', '1');
-  
+
   equal(Ember._suspendObserver(obj, 'foo', target, target.method, callback), 'result');
 
   set(obj, 'foo', '3');
@@ -115,7 +115,7 @@ testBoth('suspending an observer should not defer change notifications during ca
   }
 
   set(obj, 'foo', '1');
-  
+
   Ember.beginPropertyChanges();
   equal(Ember._suspendObserver(obj, 'foo', target, target.method, callback), 'result');
   Ember.endPropertyChanges();
@@ -683,7 +683,7 @@ testBoth('setting a cached computed property whose value has changed should trig
   Ember.defineProperty(obj, 'foo', Ember.computed(function(key, value) {
     if (arguments.length === 2) { return value; }
     return get(this, 'baz');
-  }).property('baz').cacheable());
+  }).property('baz'));
 
   var count = 0;
 
@@ -727,7 +727,7 @@ testBoth("immediate observers should fire synchronously", function(get, set) {
         return value;
       }
       return "yes hello this is foo";
-    }).cacheable());
+    }));
 
     equal(get(obj, 'foo'), "yes hello this is foo", "precond - computed property returns a value");
     equal(observerCalled, 0, "observer has not yet been called");
@@ -739,8 +739,77 @@ testBoth("immediate observers should fire synchronously", function(get, set) {
 });
 
 testBoth("immediate observers are for internal properties only", function(get, set) {
-  raises(function() {
+  expectAssertion(function() {
     Ember.immediateObserver(Ember.K, 'foo.bar');
-  });
+  }, 'Immediate observers must observe internal properties only, not properties on other objects.');
 });
 
+module("Ember.changeProperties");
+
+testBoth("observers added/removed during changeProperties should do the right thing.", function(get,set) {
+  var obj = {
+    foo: 0
+  };
+  function Observer() {
+    this.willChangeCount = 0;
+    this.didChangeCount = 0;
+  }
+  Observer.prototype = {
+    add: function () {
+      Ember.addBeforeObserver(obj, 'foo', this, 'willChange');
+      Ember.addObserver(obj, 'foo', this, 'didChange');
+    },
+    remove: function() {
+      Ember.removeBeforeObserver(obj, 'foo', this, 'willChange');
+      Ember.removeObserver(obj, 'foo', this, 'didChange');
+    },
+    willChange: function () {
+      this.willChangeCount++;
+    },
+    didChange: function () {
+      this.didChangeCount++;
+    }
+  };
+  var addedBeforeFirstChangeObserver = new Observer();
+  var addedAfterFirstChangeObserver = new Observer();
+  var addedAfterLastChangeObserver = new Observer();
+  var removedBeforeFirstChangeObserver = new Observer();
+  var removedBeforeLastChangeObserver = new Observer();
+  var removedAfterLastChangeObserver = new Observer();
+  removedBeforeFirstChangeObserver.add();
+  removedBeforeLastChangeObserver.add();
+  removedAfterLastChangeObserver.add();
+  Ember.changeProperties(function () {
+    removedBeforeFirstChangeObserver.remove();
+    addedBeforeFirstChangeObserver.add();
+
+    set(obj, 'foo', 1);
+
+    equal(addedBeforeFirstChangeObserver.willChangeCount, 1, 'addBeforeObserver called before the first change invoked immediately');
+    equal(addedBeforeFirstChangeObserver.didChangeCount, 0, 'addObserver called before the first change is deferred');
+
+    addedAfterFirstChangeObserver.add();
+    removedBeforeLastChangeObserver.remove();
+
+    set(obj, 'foo', 2);
+
+    equal(addedAfterFirstChangeObserver.willChangeCount, 1, 'addBeforeObserver called after the first change invoked immediately');
+    equal(addedAfterFirstChangeObserver.didChangeCount, 0, 'addObserver called after the first change is deferred');
+
+    addedAfterLastChangeObserver.add();
+    removedAfterLastChangeObserver.remove();
+  });
+
+  equal(removedBeforeFirstChangeObserver.willChangeCount, 0, 'removeBeforeObserver called before the first change sees none');
+  equal(removedBeforeFirstChangeObserver.didChangeCount,  0, 'removeObserver called before the first change sees none');
+  equal(addedBeforeFirstChangeObserver.willChangeCount,   1, 'addBeforeObserver called before the first change sees only 1');
+  equal(addedBeforeFirstChangeObserver.didChangeCount,    1, 'addObserver called before the first change sees only 1');
+  equal(addedAfterFirstChangeObserver.willChangeCount,    1, 'addBeforeObserver called after the first change sees 1');
+  equal(addedAfterFirstChangeObserver.didChangeCount,     1, 'addObserver called after the first change sees 1');
+  equal(addedAfterLastChangeObserver.willChangeCount,     0, 'addBeforeObserver called after the last change sees none');
+  equal(addedAfterLastChangeObserver.didChangeCount,      0, 'addObserver called after the last change sees none');
+  equal(removedBeforeLastChangeObserver.willChangeCount,  1, 'removeBeforeObserver called before the last change still sees 1');
+  equal(removedBeforeLastChangeObserver.didChangeCount,   1, 'removeObserver called before the last change still sees 1');
+  equal(removedAfterLastChangeObserver.willChangeCount,   1, 'removeBeforeObserver called after the last change still sees 1');
+  equal(removedAfterLastChangeObserver.didChangeCount,    1, 'removeObserver called after the last change still sees 1');
+});

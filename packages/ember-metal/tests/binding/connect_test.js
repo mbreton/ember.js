@@ -2,8 +2,6 @@
 
 require('ember-metal/~tests/props_helper');
 
-var previousPreventRunloop;
-
 function performTest(binding, a, b, get, set, connect) {
   if (connect === undefined) connect = function(){binding.connect(a);};
 
@@ -33,7 +31,7 @@ module("Ember.Binding");
 
 testBoth('Connecting a binding between two properties', function(get, set) {
   var a = { foo: 'FOO', bar: 'BAR' };
-  
+
   // a.bar -> a.foo
   var binding = new Ember.Binding('foo', 'bar');
 
@@ -65,11 +63,11 @@ testBoth('Connecting a binding to path', function(get, set) {
 
   // make sure modifications update
   b = { bar: 'BIFF' };
-  
+
   Ember.run(function(){
     set(GlobalB, 'b', b);
   });
-  
+
   equal(get(a, 'foo'), 'BIFF', 'a should have changed');
 
 });

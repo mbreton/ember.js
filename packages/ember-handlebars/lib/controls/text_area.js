@@ -17,8 +17,25 @@ var get = Ember.get, set = Ember.set;
 
   ## Layout and LayoutName properties
 
-  Because HTML `textarea` elements do not contain inner HTML the `layout` and `layoutName` 
-  properties will not be applied. See `Ember.View`'s layout section for more information.
+  Because HTML `textarea` elements do not contain inner HTML the `layout` and
+  `layoutName` properties will not be applied. See `Ember.View`'s layout
+  section for more information.
+
+  ## HTML Attributes
+
+  By default `Ember.TextArea` provides support for `rows`, `cols`,
+  `placeholder`, `disabled`, `maxlength` and `tabindex` attributes on a
+  textarea. If you need to support  more attributes have a look at the
+  `attributeBindings` property in `Ember.View`'s HTML Attributes section.
+
+  To globally add support for additional attributes you can reopen
+  `Ember.TextArea` or `Ember.TextSupport`.
+
+  ```javascript
+  Ember.TextSupport.reopen({
+    attributeBindings: ["required"]
+  })
+  ```
 
   @class TextArea
   @namespace Ember
@@ -29,7 +46,7 @@ Ember.TextArea = Ember.View.extend(Ember.TextSupport, {
   classNames: ['ember-text-area'],
 
   tagName: "textarea",
-  attributeBindings: ['rows', 'cols'],
+  attributeBindings: ['rows', 'cols', 'name'],
   rows: null,
   cols: null,
 

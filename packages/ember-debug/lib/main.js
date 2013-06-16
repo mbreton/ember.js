@@ -27,29 +27,35 @@ if (!('MANDATORY_SETTER' in Ember.ENV)) {
 
 /**
   Define an assertion that will throw an exception if the condition is not
-  met.  Ember build tools will remove any calls to Ember.assert() when
+  met. Ember build tools will remove any calls to `Ember.assert()` when
   doing a production build. Example:
 
-      // Test for truthiness
-      Ember.assert('Must pass a valid object', obj);
-      // Fail unconditionally
-      Ember.assert('This code path should never be run')
+  ```javascript
+  // Test for truthiness
+  Ember.assert('Must pass a valid object', obj);
+  // Fail unconditionally
+  Ember.assert('This code path should never be run')
+  ```
 
   @method assert
-  @param {String} desc A description of the assertion.  This will become
+  @param {String} desc A description of the assertion. This will become
     the text of the Error thrown if the assertion fails.
-
   @param {Boolean} test Must be truthy for the assertion to pass. If
     falsy, an exception will be thrown.
 */
 Ember.assert = function(desc, test) {
-  if (!test) throw new Error("assertion failed: "+desc);
+  Ember.Logger.assert(test, desc);
+
+  if (Ember.testing && !test) {
+    // when testing, ensure test failures when assertions fail
+    throw new Error("Assertion Failed: " + desc);
+  }
 };
 
 
 /**
   Display a warning with the provided message. Ember build tools will
-  remove any calls to Ember.warn() when doing a production build.
+  remove any calls to `Ember.warn()` when doing a production build.
 
   @method warn
   @param {String} message A warning to display.
@@ -64,9 +70,24 @@ Ember.warn = function(message, test) {
 };
 
 /**
+  Display a debug notice. Ember build tools will remove any calls to
+  `Ember.debug()` when doing a production build.
+
+  ```javascript
+  Ember.debug("I'm a debug notice!");
+  ```
+
+  @method debug
+  @param {String} message A debug message to display.
+*/
+Ember.debug = function(message) {
+  Ember.Logger.debug("DEBUG: "+message);
+};
+
+/**
   Display a deprecation warning with the provided message and a stack trace
   (Chrome and Firefox only). Ember build tools will remove any calls to
-  Ember.deprecate() when doing a production build.
+  `Ember.deprecate()` when doing a production build.
 
   @method deprecate
   @param {String} message A description of the deprecation.
@@ -113,12 +134,13 @@ Ember.deprecate = function(message, test) {
   Display a deprecation warning with the provided message and a stack trace
   (Chrome and Firefox only) when the wrapped method is called.
 
-  Ember build tools will not remove calls to Ember.deprecateFunc(), though
+  Ember build tools will not remove calls to `Ember.deprecateFunc()`, though
   no warnings will be shown in production.
 
   @method deprecateFunc
   @param {String} message A description of the deprecation.
   @param {Function} func The function to be deprecated.
+  @return {Function} a new function that wrapped the original function with a deprecation warning
 */
 Ember.deprecateFunc = function(message, func) {
   return function() {
@@ -126,9 +148,3 @@ Ember.deprecateFunc = function(message, func) {
     return func.apply(this, arguments);
   };
 };
-
-
-window.ember_assert         = Ember.deprecateFunc("ember_assert is deprecated. Please use Ember.assert instead.",               Ember.assert);
-window.ember_warn           = Ember.deprecateFunc("ember_warn is deprecated. Please use Ember.warn instead.",                   Ember.warn);
-window.ember_deprecate      = Ember.deprecateFunc("ember_deprecate is deprecated. Please use Ember.deprecate instead.",         Ember.deprecate);
-window.ember_deprecateFunc  = Ember.deprecateFunc("ember_deprecateFunc is deprecated. Please use Ember.deprecateFunc instead.", Ember.deprecateFunc);

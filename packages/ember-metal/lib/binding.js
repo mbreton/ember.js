@@ -1,6 +1,7 @@
 require('ember-metal/core'); // Ember.Logger
-require('ember-metal/accessors'); // get, set, trySet
-require('ember-metal/utils'); // guidFor, isArray, meta
+require('ember-metal/property_get'); // get
+require('ember-metal/property_set'); // set
+require('ember-metal/utils'); // guidFor, meta
 require('ember-metal/observer'); // addObserver, removeObserver
 require('ember-metal/run_loop'); // Ember.run.schedule
 require('ember-metal/map');
@@ -28,8 +29,21 @@ Ember.LOG_BINDINGS = false || !!Ember.ENV.LOG_BINDINGS;
 var get     = Ember.get,
     set     = Ember.set,
     guidFor = Ember.guidFor,
-    isGlobalPath = Ember.isGlobalPath;
+    IS_GLOBAL = /^([A-Z$]|([0-9][A-Z$]))/;
 
+/**
+  Returns true if the provided path is global (e.g., `MyApp.fooController.bar`)
+  instead of local (`foo.bar.baz`).
+
+  @method isGlobalPath
+  @for Ember
+  @private
+  @param {String} path
+  @return Boolean
+*/
+var isGlobalPath = Ember.isGlobalPath = function(path) {
+  return IS_GLOBAL.test(path);
+};
 
 function getWithGlobals(obj, path) {
   return get(isGlobalPath(path) ? Ember.lookup : obj, path);
@@ -69,17 +83,17 @@ Binding.prototype = {
   //
 
   /**
-    This will set "from" property path to the specified value. It will not
+    This will set `from` property path to the specified value. It will not
     attempt to resolve this property path to an actual object until you
     connect the binding.
 
     The binding will search for the property path starting at the root object
-    you pass when you connect() the binding.  It follows the same rules as
+    you pass when you `connect()` the binding. It follows the same rules as
     `get()` - see that method for more information.
 
     @method from
-    @param {String} propertyPath the property path to connect to
-    @return {Ember.Binding} receiver
+    @param {String} path the property path to connect to
+    @return {Ember.Binding} `this`
   */
   from: function(path) {
     this._from = path;
@@ -87,17 +101,17 @@ Binding.prototype = {
   },
 
   /**
-    This will set the "to" property path to the specified value. It will not
+    This will set the `to` property path to the specified value. It will not
     attempt to resolve this property path to an actual object until you
     connect the binding.
 
     The binding will search for the property path starting at the root object
-    you pass when you connect() the binding.  It follows the same rules as
+    you pass when you `connect()` the binding. It follows the same rules as
     `get()` - see that method for more information.
 
     @method to
-    @param {String|Tuple} propertyPath A property path or tuple
-    @return {Ember.Binding} this
+    @param {String|Tuple} path A property path or tuple
+    @return {Ember.Binding} `this`
   */
   to: function(path) {
     this._to = path;
@@ -106,18 +120,22 @@ Binding.prototype = {
 
   /**
     Configures the binding as one way. A one-way binding will relay changes
-    on the "from" side to the "to" side, but not the other way around. This
-    means that if you change the "to" side directly, the "from" side may have
+    on the `from` side to the `to` side, but not the other way around. This
+    means that if you change the `to` side directly, the `from` side may have
     a different value.
 
     @method oneWay
-    @return {Ember.Binding} receiver
+    @return {Ember.Binding} `this`
   */
   oneWay: function() {
     this._oneWay = true;
     return this;
   },
 
+  /**
+    @method toString
+    @return {String} string representation of binding
+  */
   toString: function() {
     var oneWay = this._oneWay ? '[oneWay]' : '';
     return "Ember.Binding<" + guidFor(this) + ">(" + this._from + " -> " + this._to + ")" + oneWay;
@@ -134,7 +152,7 @@ Binding.prototype = {
 
     @method connect
     @param {Object} obj The root object for this binding.
-    @return {Ember.Binding} this
+    @return {Ember.Binding} `this`
   */
   connect: function(obj) {
     Ember.assert('Must pass a valid object to Ember.Binding.connect()', !!obj);
@@ -159,7 +177,7 @@ Binding.prototype = {
 
     @method disconnect
     @param {Object} obj The root object you passed when connecting the binding.
-    @return {Ember.Binding} this
+    @return {Ember.Binding} `this`
   */
   disconnect: function(obj) {
     Ember.assert('Must pass a valid object to Ember.Binding.disconnect()', !!obj);
@@ -261,7 +279,7 @@ function mixinProperties(to, from) {
 mixinProperties(Binding, {
 
   /**
-    See {{#crossLink "Ember.Binding/from"}}{{/crossLink}}
+    See `Ember.Binding.from`.
 
     @method from
     @static
@@ -272,7 +290,7 @@ mixinProperties(Binding, {
   },
 
   /**
-    See {{#crossLink "Ember.Binding/to"}}{{/crossLink}}
+    See `Ember.Binding.to`.
 
     @method to
     @static
@@ -284,17 +302,18 @@ mixinProperties(Binding, {
 
   /**
     Creates a new Binding instance and makes it apply in a single direction.
-    A one-way binding will relay changes on the "from" side object (supplied
-    as the `from` argument) the "to" side, but not the other way around.
+    A one-way binding will relay changes on the `from` side object (supplied
+    as the `from` argument) the `to` side, but not the other way around.
     This means that if you change the "to" side directly, the "from" side may have
     a different value.
 
-    See {{#crossLink "Binding/oneWay"}}{{/crossLink}}
+    See `Binding.oneWay`.
 
     @method oneWay
     @param {String} from from path.
-    @param {Boolean} [flag] (Optional) passing nothing here will make the binding oneWay.  You can
-      instead pass false to disable oneWay, making the binding two way again.
+    @param {Boolean} [flag] (Optional) passing nothing here will make the
+      binding `oneWay`. You can instead pass `false` to disable `oneWay`, making the
+      binding two way again.
   */
   oneWay: function(from, flag) {
     var C = this, binding = new C(null, from);
@@ -304,18 +323,23 @@ mixinProperties(Binding, {
 });
 
 /**
-  An Ember.Binding connects the properties of two objects so that whenever the
-  value of one property changes, the other property will be changed also.
+  An `Ember.Binding` connects the properties of two objects so that whenever
+  the value of one property changes, the other property will be changed also.
 
   ## Automatic Creation of Bindings with `/^*Binding/`-named Properties
+
   You do not usually create Binding objects directly but instead describe
-  bindings in your class or object definition using automatic binding detection.
+  bindings in your class or object definition using automatic binding
+  detection.
 
-  Properties ending in a `Binding` suffix will be converted to Ember.Binding instances.
-  The value of this property should be a string representing a path to another object or
-  a custom binding instanced created using Binding helpers (see "Customizing Your Bindings"):
+  Properties ending in a `Binding` suffix will be converted to `Ember.Binding`
+  instances. The value of this property should be a string representing a path
+  to another object or a custom binding instanced created using Binding helpers
+  (see "One Way Bindings"):
 
-      valueBinding: "MyApp.someController.title"
+  ```
+  valueBinding: "MyApp.someController.title"
+  ```
 
   This will create a binding from `MyApp.someController.title` to the `value`
   property of your object instance automatically. Now the two values will be
@@ -330,51 +354,57 @@ mixinProperties(Binding, {
   has changed, but your object will not be changing the preference itself, you
   could do:
 
-      bigTitlesBinding: Ember.Binding.oneWay("MyApp.preferencesController.bigTitles")
+  ```
+  bigTitlesBinding: Ember.Binding.oneWay("MyApp.preferencesController.bigTitles")
+  ```
 
-  This way if the value of MyApp.preferencesController.bigTitles changes the
-  "bigTitles" property of your object will change also. However, if you
-  change the value of your "bigTitles" property, it will not update the
-  preferencesController.
+  This way if the value of `MyApp.preferencesController.bigTitles` changes the
+  `bigTitles` property of your object will change also. However, if you
+  change the value of your `bigTitles` property, it will not update the
+  `preferencesController`.
 
   One way bindings are almost twice as fast to setup and twice as fast to
   execute because the binding only has to worry about changes to one side.
 
   You should consider using one way bindings anytime you have an object that
   may be created frequently and you do not intend to change a property; only
-  to monitor it for changes. (such as in the example above).
+  to monitor it for changes (such as in the example above).
 
   ## Adding Bindings Manually
 
-  All of the examples above show you how to configure a custom binding, but
-  the result of these customizations will be a binding template, not a fully
-  active Binding instance. The binding will actually become active only when you
+  All of the examples above show you how to configure a custom binding, but the
+  result of these customizations will be a binding template, not a fully active
+  Binding instance. The binding will actually become active only when you
   instantiate the object the binding belongs to. It is useful however, to
   understand what actually happens when the binding is activated.
 
-  For a binding to function it must have at least a "from" property and a "to"
-  property. The from property path points to the object/key that you want to
-  bind from while the to path points to the object/key you want to bind to.
+  For a binding to function it must have at least a `from` property and a `to`
+  property. The `from` property path points to the object/key that you want to
+  bind from while the `to` path points to the object/key you want to bind to.
 
   When you define a custom binding, you are usually describing the property
-  you want to bind from (such as "MyApp.someController.value" in the examples
+  you want to bind from (such as `MyApp.someController.value` in the examples
   above). When your object is created, it will automatically assign the value
-  you want to bind "to" based on the name of your binding key. In the
+  you want to bind `to` based on the name of your binding key. In the
   examples above, during init, Ember objects will effectively call
   something like this on your binding:
 
-      binding = Ember.Binding.from(this.valueBinding).to("value");
+  ```javascript
+  binding = Ember.Binding.from(this.valueBinding).to("value");
+  ```
 
   This creates a new binding instance based on the template you provide, and
-  sets the to path to the "value" property of the new object. Now that the
-  binding is fully configured with a "from" and a "to", it simply needs to be
-  connected to become active. This is done through the connect() method:
+  sets the to path to the `value` property of the new object. Now that the
+  binding is fully configured with a `from` and a `to`, it simply needs to be
+  connected to become active. This is done through the `connect()` method:
 
-      binding.connect(this);
+  ```javascript
+  binding.connect(this);
+  ```
 
   Note that when you connect a binding you pass the object you want it to be
-  connected to.  This object will be used as the root for both the from and
-  to side of the binding when inspecting relative paths.  This allows the
+  connected to. This object will be used as the root for both the from and
+  to side of the binding when inspecting relative paths. This allows the
   binding to be automatically inherited by subclassed objects as well.
 
   Now that the binding is connected, it will observe both the from and to side
@@ -382,20 +412,23 @@ mixinProperties(Binding, {
 
   If you ever needed to do so (you almost never will, but it is useful to
   understand this anyway), you could manually create an active binding by
-  using the Ember.bind() helper method. (This is the same method used by
+  using the `Ember.bind()` helper method. (This is the same method used by
   to setup your bindings on objects):
 
-      Ember.bind(MyApp.anotherObject, "value", "MyApp.someController.value");
+  ```javascript
+  Ember.bind(MyApp.anotherObject, "value", "MyApp.someController.value");
+  ```
 
   Both of these code fragments have the same effect as doing the most friendly
   form of binding creation like so:
 
-      MyApp.anotherObject = Ember.Object.create({
-        valueBinding: "MyApp.someController.value",
+  ```javascript
+  MyApp.anotherObject = Ember.Object.create({
+    valueBinding: "MyApp.someController.value",
 
-        // OTHER CODE FOR THIS OBJECT...
-
-      });
+    // OTHER CODE FOR THIS OBJECT...
+  });
+  ```
 
   Ember's built in binding creation method makes it easy to automatically
   create bindings for you. You should always use the highest-level APIs
@@ -409,19 +442,16 @@ Ember.Binding = Binding;
 
 
 /**
-  Global helper method to create a new binding.  Just pass the root object
-  along with a to and from path to create and connect the binding.
+  Global helper method to create a new binding. Just pass the root object
+  along with a `to` and `from` path to create and connect the binding.
 
   @method bind
   @for Ember
   @param {Object} obj The root object of the transform.
-
   @param {String} to The path to the 'to' side of the binding.
     Must be relative to obj.
-
   @param {String} from The path to the 'from' side of the binding.
     Must be relative to obj or a global path.
-
   @return {Ember.Binding} binding instance
 */
 Ember.bind = function(obj, to, from) {
@@ -432,13 +462,10 @@ Ember.bind = function(obj, to, from) {
   @method oneWay
   @for Ember
   @param {Object} obj The root object of the transform.
-
   @param {String} to The path to the 'to' side of the binding.
     Must be relative to obj.
-
   @param {String} from The path to the 'from' side of the binding.
     Must be relative to obj or a global path.
-
   @return {Ember.Binding} binding instance
 */
 Ember.oneWay = function(obj, to, from) {

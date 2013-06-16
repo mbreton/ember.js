@@ -7,13 +7,13 @@ require('ember-handlebars/ext');
 @submodule ember-handlebars
 */
 
-var getPath = Ember.Handlebars.getPath, normalizePath = Ember.Handlebars.normalizePath;
+var handlebarsGet = Ember.Handlebars.get, normalizePath = Ember.Handlebars.normalizePath;
 
 /**
   `log` allows you to output the value of a value in the current rendering
   context.
 
-  ``` handlebars
+  ```handlebars
   {{log myVariable}}
   ```
 
@@ -26,15 +26,14 @@ Ember.Handlebars.registerHelper('log', function(property, options) {
       normalized = normalizePath(context, property, options.data),
       pathRoot = normalized.root,
       path = normalized.path,
-      value = (path === 'this') ? pathRoot : getPath(pathRoot, path, options);
+      value = (path === 'this') ? pathRoot : handlebarsGet(pathRoot, path, options);
   Ember.Logger.log(value);
 });
 
 /**
-  The `debugger` helper executes the `debugger` statement in the current
-  context.
+  Execute the `debugger` statement in the current context.
 
-  ``` handlebars
+  ```handlebars
   {{debugger}}
   ```
 

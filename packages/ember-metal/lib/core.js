@@ -6,24 +6,23 @@
 */
 
 /**
-  All Ember methods and functions are defined inside of this namespace.
-  You generally should not add new properties to this namespace as it may be
+  All Ember methods and functions are defined inside of this namespace. You
+  generally should not add new properties to this namespace as it may be
   overwritten by future versions of Ember.
 
-  You can also use the shorthand "Em" instead of "Ember".
+  You can also use the shorthand `Em` instead of `Ember`.
 
-  Ember-Runtime is a framework that provides core functions for
-  Ember including cross-platform functions, support for property
-  observing and objects. Its focus is on small size and performance. You can
-  use this in place of or along-side other cross-platform libraries such as
-  jQuery.
+  Ember-Runtime is a framework that provides core functions for Ember including
+  cross-platform functions, support for property observing and objects. Its
+  focus is on small size and performance. You can use this in place of or
+  along-side other cross-platform libraries such as jQuery.
 
   The core Runtime framework is based on the jQuery API with a number of
   performance optimizations.
 
   @class Ember
   @static
-  @version 1.0.pre
+  @version 1.0.0-rc.5
 */
 
 if ('undefined' === typeof Ember) {
@@ -50,13 +49,13 @@ Ember.toString = function() { return "Ember"; };
 /**
   @property VERSION
   @type String
-  @default '1.0.pre'
+  @default '1.0.0-rc.5'
   @final
 */
-Ember.VERSION = '1.0.pre';
+Ember.VERSION = '1.0.0-rc.5';
 
 /**
-  Standard environmental variables.  You can define these in a global `ENV`
+  Standard environmental variables. You can define these in a global `ENV`
   variable before loading Ember to control various configuration
   settings.
 
@@ -72,20 +71,24 @@ Ember.config = Ember.config || {};
 //
 
 /**
-  Determines whether Ember should enhances some built-in object
-  prototypes to provide a more friendly API.  If enabled, a few methods
-  will be added to Function, String, and Array.  Object.prototype will not be
-  enhanced, which is the one that causes most troubles for people.
+  Determines whether Ember should enhances some built-in object prototypes to
+  provide a more friendly API. If enabled, a few methods will be added to
+  `Function`, `String`, and `Array`. `Object.prototype` will not be enhanced,
+  which is the one that causes most trouble for people.
 
   In general we recommend leaving this option set to true since it rarely
-  conflicts with other code.  If you need to turn it off however, you can
-  define an ENV.EXTEND_PROTOTYPES config to disable it.
+  conflicts with other code. If you need to turn it off however, you can
+  define an `ENV.EXTEND_PROTOTYPES` config to disable it.
 
   @property EXTEND_PROTOTYPES
   @type Boolean
   @default true
 */
-Ember.EXTEND_PROTOTYPES = (Ember.ENV.EXTEND_PROTOTYPES !== false);
+Ember.EXTEND_PROTOTYPES = Ember.ENV.EXTEND_PROTOTYPES;
+
+if (typeof Ember.EXTEND_PROTOTYPES === 'undefined') {
+  Ember.EXTEND_PROTOTYPES = true;
+}
 
 /**
   Determines whether Ember logs a full stack trace during deprecation warnings
@@ -105,62 +108,17 @@ Ember.LOG_STACKTRACE_ON_DEPRECATION = (Ember.ENV.LOG_STACKTRACE_ON_DEPRECATION !
 */
 Ember.SHIM_ES5 = (Ember.ENV.SHIM_ES5 === false) ? false : Ember.EXTEND_PROTOTYPES;
 
-
 /**
-  Determines whether computed properties are cacheable by default.
-  This option will be removed for the 1.1 release.
+  Determines whether Ember logs info about version of used libraries
 
-  When caching is enabled by default, you can use `volatile()` to disable
-  caching on individual computed properties.
-
-  @property CP_DEFAULT_CACHEABLE
+  @property LOG_VERSION
   @type Boolean
   @default true
 */
-Ember.CP_DEFAULT_CACHEABLE = (Ember.ENV.CP_DEFAULT_CACHEABLE !== false);
+Ember.LOG_VERSION = (Ember.ENV.LOG_VERSION === false) ? false : true;
 
 /**
-  Determines whether views render their templates using themselves
-  as the context, or whether it is inherited from the parent. This option
-  will be removed in the 1.1 release.
-
-  If you need to update your application to use the new context rules, simply
-  prefix property access with `view.`:
-
-  Before:
-
-  ``` handlebars
-  {{#each App.photosController}}
-    Photo Title: {{title}}
-    {{#view App.InfoView contentBinding="this"}}
-      {{content.date}}
-      {{content.cameraType}}
-      {{otherViewProperty}}
-    {{/view}}
-  {{/each}}
-  ```
-
-  After:
-
-  ``` handlebars
-  {{#each App.photosController}}
-    Photo Title: {{title}}
-    {{#view App.InfoView}}
-      {{date}}
-      {{cameraType}}
-      {{view.otherViewProperty}}
-    {{/view}}
-  {{/each}}
-  ```
-
-  @property VIEW_PRESERVES_CONTEXT
-  @type Boolean
-  @default true
-*/
-Ember.VIEW_PRESERVES_CONTEXT = (Ember.ENV.VIEW_PRESERVES_CONTEXT !== false);
-
-/**
-  Empty function.  Useful for some operations.
+  Empty function. Useful for some operations.
 
   @method K
   @private
@@ -173,33 +131,70 @@ Ember.K = function() { return this; };
 
 if ('undefined' === typeof Ember.assert) { Ember.assert = Ember.K; }
 if ('undefined' === typeof Ember.warn) { Ember.warn = Ember.K; }
+if ('undefined' === typeof Ember.debug) { Ember.debug = Ember.K; }
 if ('undefined' === typeof Ember.deprecate) { Ember.deprecate = Ember.K; }
 if ('undefined' === typeof Ember.deprecateFunc) {
   Ember.deprecateFunc = function(_, func) { return func; };
 }
 
-// These are deprecated but still supported
+/**
+  Previously we used `Ember.$.uuid`, however `$.uuid` has been removed from
+  jQuery master. We'll just bootstrap our own uuid now.
 
-if ('undefined' === typeof ember_assert) { exports.ember_assert = Ember.K; }
-if ('undefined' === typeof ember_warn) { exports.ember_warn = Ember.K; }
-if ('undefined' === typeof ember_deprecate) { exports.ember_deprecate = Ember.K; }
-if ('undefined' === typeof ember_deprecateFunc) {
-  exports.ember_deprecateFunc = function(_, func) { return func; };
-}
-
+  @property uuid
+  @type Number
+  @private
+*/
+Ember.uuid = 0;
 
 // ..........................................................
 // LOGGER
 //
 
+function consoleMethod(name) {
+  if (imports.console && imports.console[name]) {
+    // Older IE doesn't support apply, but Chrome needs it
+    if (imports.console[name].apply) {
+      return function() {
+        imports.console[name].apply(imports.console, arguments);
+      };
+    } else {
+      return function() {
+        var message = Array.prototype.join.call(arguments, ', ');
+        imports.console[name](message);
+      };
+    }
+  }
+}
+
+function assertPolyfill(test, message) {
+  if (!test) {
+    try {
+      // attempt to preserve the stack
+      throw new Error("assertion failed: " + message);
+    } catch(error) {
+      setTimeout(function(){
+        throw error;
+      }, 0);
+    }
+  }
+}
+
 /**
-  Inside Ember-Metal, simply uses the imports.console object.
+  Inside Ember-Metal, simply uses the methods from `imports.console`.
   Override this to provide more robust logging functionality.
 
   @class Logger
   @namespace Ember
 */
-Ember.Logger = imports.console || { log: Ember.K, warn: Ember.K, error: Ember.K, info: Ember.K, debug: Ember.K };
+Ember.Logger = {
+  log:   consoleMethod('log')   || Ember.K,
+  warn:  consoleMethod('warn')  || Ember.K,
+  error: consoleMethod('error') || Ember.K,
+  info:  consoleMethod('info')  || Ember.K,
+  debug: consoleMethod('debug') || consoleMethod('info') || Ember.K,
+  assert: consoleMethod('assert') || assertPolyfill
+};
 
 
 // ..........................................................
@@ -207,8 +202,9 @@ Ember.Logger = imports.console || { log: Ember.K, warn: Ember.K, error: Ember.K,
 //
 
 /**
-  A function may be assigned to `Ember.onerror` to be called when Ember internals encounter an error.
-  This is useful for specialized error handling and reporting code.
+  A function may be assigned to `Ember.onerror` to be called when Ember
+  internals encounter an error. This is useful for specialized error handling
+  and reporting code.
 
   @event onerror
   @for Ember
@@ -219,7 +215,7 @@ Ember.onerror = null;
 /**
   @private
 
-  Wrap code block in a try/catch if {{#crossLink "Ember/onerror"}}{{/crossLink}} is set.
+  Wrap code block in a try/catch if `Ember.onerror` is set.
 
   @method handleErrors
   @for Ember
@@ -231,11 +227,71 @@ Ember.handleErrors = function(func, context) {
   // so in the event that we don't have an `onerror` handler we don't wrap in a try/catch
   if ('function' === typeof Ember.onerror) {
     try {
-      return func.apply(context || this);
+      return func.call(context || this);
     } catch (error) {
       Ember.onerror(error);
     }
   } else {
-    return func.apply(context || this);
+    return func.call(context || this);
   }
 };
+
+Ember.merge = function(original, updates) {
+  for (var prop in updates) {
+    if (!updates.hasOwnProperty(prop)) { continue; }
+    original[prop] = updates[prop];
+  }
+  return original;
+};
+
+/**
+  Returns true if the passed value is null or undefined. This avoids errors
+  from JSLint complaining about use of ==, which can be technically
+  confusing.
+
+  ```javascript
+  Ember.isNone();              // true
+  Ember.isNone(null);          // true
+  Ember.isNone(undefined);     // true
+  Ember.isNone('');            // false
+  Ember.isNone([]);            // false
+  Ember.isNone(function(){});  // false
+  ```
+
+  @method isNone
+  @for Ember
+  @param {Object} obj Value to test
+  @return {Boolean}
+*/
+Ember.isNone = function(obj) {
+  return obj === null || obj === undefined;
+};
+Ember.none = Ember.deprecateFunc("Ember.none is deprecated. Please use Ember.isNone instead.", Ember.isNone);
+
+/**
+  Verifies that a value is `null` or an empty string, empty array,
+  or empty function.
+
+  Constrains the rules on `Ember.isNone` by returning false for empty
+  string and empty arrays.
+
+  ```javascript
+  Ember.isEmpty();                // true
+  Ember.isEmpty(null);            // true
+  Ember.isEmpty(undefined);       // true
+  Ember.isEmpty('');              // true
+  Ember.isEmpty([]);              // true
+  Ember.isEmpty('Adam Hawkins');  // false
+  Ember.isEmpty([0,1,2]);         // false
+  ```
+
+  @method isEmpty
+  @for Ember
+  @param {Object} obj Value to test
+  @return {Boolean}
+*/
+Ember.isEmpty = function(obj) {
+  return Ember.isNone(obj) || (obj.length === 0 && typeof obj !== 'function') || (typeof obj === 'object' && Ember.get(obj, 'length') === 0);
+};
+Ember.empty = Ember.deprecateFunc("Ember.empty is deprecated. Please use Ember.isEmpty instead.", Ember.isEmpty) ;
+

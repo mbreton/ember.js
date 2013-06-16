@@ -34,3 +34,6 @@ tmp*.gem
 tmp.bpm
 tmp.spade
 tests/source
+node_modules
+.vagrant
+bundle/

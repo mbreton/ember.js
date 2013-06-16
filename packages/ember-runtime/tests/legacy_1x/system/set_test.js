@@ -41,7 +41,7 @@ test("new Ember.Set([1,2,3]) should create set with three items in them", functi
 });
 
 test("new Ember.Set() should accept anything that implements Ember.Array", function() {
-  var arrayLikeObject = Ember.Object.create(Ember.Array, {
+  var arrayLikeObject = Ember.Object.createWithMixins(Ember.Array, {
     _content: [a,b,c],
     length: 3,
     objectAt: function(idx) { return this._content[idx]; }
@@ -290,7 +290,7 @@ module("Ember.Set.pop + Ember.Set.copy", {
 test("the pop() should remove an arbitrary object from the set", function() {
   var oldLength = set.length ;
   var obj = set.pop();
-  ok(!Ember.none(obj), 'pops up an item');
+  ok(!Ember.isNone(obj), 'pops up an item');
   equal(set.length, oldLength-1, 'length shorter by 1');
 });
 

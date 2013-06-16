@@ -1,20 +1,23 @@
 {
     "predef": [
+        "define",
         "console",
         "Ember",
         "DS",
         "Handlebars",
         "Metamorph",
-        "ember_assert",
-        "ember_warn",
-        "ember_deprecate",
-        "ember_deprecateFunc",
+        "RSVP",
         "require",
+        "requireModule",
         "equal",
+        "notEqual",
+        "notStrictEqual",
         "test",
+        "asyncTest",
         "testBoth",
         "testWithDefault",
         "raises",
+        "throws",
         "deepEqual",
         "start",
         "stop",
@@ -22,7 +25,8 @@
         "strictEqual",
         "module",
         "expect",
-        "minispade"
+        "minispade",
+        "expectAssertion"
     ],
 
     "node" : false,

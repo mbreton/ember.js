@@ -1,4 +1,5 @@
 require("ember-runtime");
+require("ember-handlebars-compiler");
 require("ember-views");
 require("ember-handlebars/ext");
 require("ember-handlebars/string");
@@ -14,3 +15,5 @@ Ember Handlebars
 @submodule ember-handlebars
 @requires ember-views
 */
+
+Ember.runLoadHooks('Ember.Handlebars', Ember.Handlebars);

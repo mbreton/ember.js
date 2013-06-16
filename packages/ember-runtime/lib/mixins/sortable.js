@@ -6,27 +6,29 @@
 var get = Ember.get, set = Ember.set, forEach = Ember.EnumerableUtils.forEach;
 
 /**
-  Ember.SortableMixin provides a standard interface for array proxies
+  `Ember.SortableMixin` provides a standard interface for array proxies
   to specify a sort order and maintain this sorting when objects are added,
   removed, or updated without changing the implicit order of their underlying
   content array:
 
-      songs = [
-        {trackNumber: 4, title: 'Ob-La-Di, Ob-La-Da'},
-        {trackNumber: 2, title: 'Back in the U.S.S.R.'},
-        {trackNumber: 3, title: 'Glass Onion'},
-      ];
+  ```javascript
+  songs = [
+    {trackNumber: 4, title: 'Ob-La-Di, Ob-La-Da'},
+    {trackNumber: 2, title: 'Back in the U.S.S.R.'},
+    {trackNumber: 3, title: 'Glass Onion'},
+  ];
 
-      songsController = Ember.ArrayController.create({
-        content: songs,
-        sortProperties: ['trackNumber']
-      });
+  songsController = Ember.ArrayController.create({
+    content: songs,
+    sortProperties: ['trackNumber'],
+    sortAscending: true
+  });
 
-      songsController.get('firstObject'); // {trackNumber: 2, title: 'Back in the U.S.S.R.'}
+  songsController.get('firstObject');  // {trackNumber: 2, title: 'Back in the U.S.S.R.'}
 
-      songsController.addObject({trackNumber: 1, title: 'Dear Prudence'});
-      songsController.get('firstObject'); // {trackNumber: 1, title: 'Dear Prudence'}
-
+  songsController.addObject({trackNumber: 1, title: 'Dear Prudence'});
+  songsController.get('firstObject');  // {trackNumber: 1, title: 'Dear Prudence'}
+  ```
 
   @class SortableMixin
   @namespace Ember
@@ -34,29 +36,54 @@ var get = Ember.get, set = Ember.set, forEach = Ember.EnumerableUtils.forEach;
   @uses Ember.MutableEnumerable
 */
 Ember.SortableMixin = Ember.Mixin.create(Ember.MutableEnumerable, {
+
+  /**
+    Specifies which properties dictate the arrangedContent's sort order.
+
+    @property {Array} sortProperties
+  */
   sortProperties: null,
+
+  /**
+    Specifies the arrangedContent's sort direction
+
+    @property {Boolean} sortAscending
+  */
   sortAscending: true,
+  
+  /**
+    The function used to compare two values. You can override this if you
+    want to do custom comparisons.Functions must be of the type expected by
+    Array#sort, i.e.
+      return 0 if the two parameters are equal,
+      return a negative value if the first parameter is smaller than the second or
+      return a positive value otherwise:
 
-  addObject: function(obj) {
-    var content = get(this, 'content');
-    content.pushObject(obj);
-  },
+    ```javascript
+    function(x,y){ // These are assumed to be integers
+      if(x === y)
+        return 0;
+      return x < y ? -1 : 1;
+    }
+    ```
 
-  removeObject: function(obj) {
-    var content = get(this, 'content');
-    content.removeObject(obj);
-  },
-
+    @property sortFunction
+    @type {Function}
+    @default Ember.compare
+  */
+  sortFunction: Ember.compare,
+  
   orderBy: function(item1, item2) {
     var result = 0,
         sortProperties = get(this, 'sortProperties'),
-        sortAscending = get(this, 'sortAscending');
+        sortAscending = get(this, 'sortAscending'),
+        sortFunction = get(this, 'sortFunction');
 
     Ember.assert("you need to define `sortProperties`", !!sortProperties);
 
     forEach(sortProperties, function(propertyName) {
       if (result === 0) {
-        result = Ember.compare(get(item1, propertyName), get(item2, propertyName));
+        result = sortFunction(get(item1, propertyName), get(item2, propertyName));
         if ((result !== 0) && !sortAscending) {
           result = (-1) * result;
         }
@@ -81,9 +108,7 @@ Ember.SortableMixin = Ember.Mixin.create(Ember.MutableEnumerable, {
     return this._super();
   },
 
-  isSorted: Ember.computed('sortProperties', function() {
-    return !!get(this, 'sortProperties');
-  }),
+  isSorted: Ember.computed.bool('sortProperties'),
 
   arrangedContent: Ember.computed('content', 'sortProperties.@each', function(key, value) {
     var content = get(this, 'content'),
@@ -105,7 +130,7 @@ Ember.SortableMixin = Ember.Mixin.create(Ember.MutableEnumerable, {
     }
 
     return content;
-  }).cacheable(),
+  }),
 
   _contentWillChange: Ember.beforeObserver(function() {
     var content = get(this, 'content'),
@@ -147,7 +172,7 @@ Ember.SortableMixin = Ember.Mixin.create(Ember.MutableEnumerable, {
         forEach(sortProperties, function(sortProperty) {
           Ember.removeObserver(item, sortProperty, this, 'contentItemSortPropertyDidChange');
         }, this);
-      });
+      }, this);
     }
 
     return this._super(array, idx, removedCount, addedCount);
@@ -159,7 +184,6 @@ Ember.SortableMixin = Ember.Mixin.create(Ember.MutableEnumerable, {
 
     if (isSorted) {
       var addedObjects = array.slice(idx, idx+addedCount);
-      var arrangedContent = get(this, 'arrangedContent');
 
       forEach(addedObjects, function(item) {
         this.insertItemSorted(item);
@@ -184,9 +208,12 @@ Ember.SortableMixin = Ember.Mixin.create(Ember.MutableEnumerable, {
   contentItemSortPropertyDidChange: function(item) {
     var arrangedContent = get(this, 'arrangedContent'),
         oldIndex = arrangedContent.indexOf(item),
-        newIndex = this._binarySearch(item, 0, get(arrangedContent, 'length'));
+        leftItem = arrangedContent.objectAt(oldIndex - 1),
+        rightItem = arrangedContent.objectAt(oldIndex + 1),
+        leftResult = leftItem && this.orderBy(item, leftItem),
+        rightResult = rightItem && this.orderBy(item, rightItem);
 
-    if (newIndex !== oldIndex) {
+    if (leftResult < 0 || rightResult > 0) {
       arrangedContent.removeObject(item);
       this.insertItemSorted(item);
     }

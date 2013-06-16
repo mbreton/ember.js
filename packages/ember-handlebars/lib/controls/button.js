@@ -27,7 +27,7 @@ Ember.Button = Ember.View.extend(Ember.TargetActionSupport, {
   /**
     @private
 
-    Overrides TargetActionSupport's targetObject computed
+    Overrides `TargetActionSupport`'s `targetObject` computed
     property to use Handlebars-specific path resolution.
 
     @property targetObject
@@ -39,23 +39,21 @@ Ember.Button = Ember.View.extend(Ember.TargetActionSupport, {
 
     if (typeof target !== 'string') { return target; }
 
-    return Ember.Handlebars.getPath(root, target, { data: data });
-  }).property('target').cacheable(),
+    return Ember.Handlebars.get(root, target, { data: data });
+  }).property('target'),
 
   // Defaults to 'button' if tagName is 'input' or 'button'
-  type: Ember.computed(function(key, value) {
-    var tagName = this.get('tagName');
-    if (value !== undefined) { this._type = value; }
-    if (this._type !== undefined) { return this._type; }
+  type: Ember.computed(function(key) {
+    var tagName = this.tagName;
     if (tagName === 'input' || tagName === 'button') { return 'button'; }
-  }).property('tagName').cacheable(),
+  }),
 
   disabled: false,
 
   // Allow 'a' tags to act like buttons
   href: Ember.computed(function() {
-    return this.get('tagName') === 'a' ? '#' : null;
-  }).property('tagName').cacheable(),
+    return this.tagName === 'a' ? '#' : null;
+  }),
 
   mouseDown: function() {
     if (!get(this, 'disabled')) {
@@ -107,7 +105,7 @@ Ember.Button = Ember.View.extend(Ember.TargetActionSupport, {
     }
   },
 
-  // TODO: Handle proper touch behavior.  Including should make inactive when
+  // TODO: Handle proper touch behavior. Including should make inactive when
   // finger moves more than 20x outside of the edge of the button (vs mouse
   // which goes inactive as soon as mouse goes out of edges.)
 

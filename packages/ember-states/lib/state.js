@@ -47,12 +47,12 @@ Ember.State = Ember.Object.extend(Ember.Evented,
     }
 
     return path;
-  }).property().cacheable(),
+  }),
 
   /**
     @private
 
-    Override the default event firing from Ember.Evented to
+    Override the default event firing from `Ember.Evented` to
     also call methods with the given name.
 
     @method trigger
@@ -66,7 +66,7 @@ Ember.State = Ember.Object.extend(Ember.Evented,
   },
 
   init: function() {
-    var states = get(this, 'states'), foundStates;
+    var states = get(this, 'states');
     set(this, 'childStates', Ember.A());
     set(this, 'eventTransitions', get(this, 'eventTransitions') || {});
 
@@ -100,8 +100,26 @@ Ember.State = Ember.Object.extend(Ember.Evented,
       }
     }
 
-    set(this, 'pathsCache', {});
-    set(this, 'pathsCacheNoContext', {});
+    // pathsCaches is a nested hash of the form:
+    //   pathsCaches[stateManagerTypeGuid][path] == transitions_hash
+    set(this, 'pathsCaches', {});
+  },
+
+  setPathsCache: function(stateManager, path, transitions) {
+    var stateManagerTypeGuid = Ember.guidFor(stateManager.constructor),
+      pathsCaches = get(this, 'pathsCaches'),
+      pathsCacheForManager = pathsCaches[stateManagerTypeGuid] || {};
+
+    pathsCacheForManager[path] = transitions;
+    pathsCaches[stateManagerTypeGuid] = pathsCacheForManager;
+  },
+
+  getPathsCache: function(stateManager, path) {
+    var stateManagerTypeGuid = Ember.guidFor(stateManager.constructor),
+      pathsCaches = get(this, 'pathsCaches'),
+      pathsCacheForManager = pathsCaches[stateManagerTypeGuid] || {};
+
+    return pathsCacheForManager[path];
   },
 
   setupChild: function(states, name, value) {
@@ -136,7 +154,7 @@ Ember.State = Ember.Object.extend(Ember.Evented,
 
   /**
     A Boolean value indicating whether the state is a leaf state
-    in the state hierarchy. This is false if the state has child
+    in the state hierarchy. This is `false` if the state has child
     states; otherwise it is true.
 
     @property isLeaf
@@ -144,7 +162,7 @@ Ember.State = Ember.Object.extend(Ember.Evented,
   */
   isLeaf: Ember.computed(function() {
     return !get(this, 'childStates').length;
-  }).cacheable(),
+  }),
 
   /**
     A boolean value indicating whether the state takes a context.
@@ -182,43 +200,47 @@ Ember.State = Ember.Object.extend(Ember.Evented,
   exit: Ember.K
 });
 
-Ember.State.reopenClass(
-/** @scope Ember.State */{
+Ember.State.reopenClass({
 
   /**
-  Creates an action function for transitioning to the named state while preserving context.
+    Creates an action function for transitioning to the named state while
+    preserving context.
 
-  The following example StateManagers are equivalent:
+    The following example StateManagers are equivalent:
 
-      aManager = Ember.StateManager.create({
-        stateOne: Ember.State.create({
-          changeToStateTwo: Ember.State.transitionTo('stateTwo')
-        }),
-        stateTwo: Ember.State.create({})
-      })
+    ```javascript
+    aManager = Ember.StateManager.create({
+      stateOne: Ember.State.create({
+        changeToStateTwo: Ember.State.transitionTo('stateTwo')
+      }),
+      stateTwo: Ember.State.create({})
+    })
 
-      bManager = Ember.StateManager.create({
-        stateOne: Ember.State.create({
-          changeToStateTwo: function(manager, context){
-            manager.transitionTo('stateTwo', context)
-          }
-        }),
-        stateTwo: Ember.State.create({})
-      })
+    bManager = Ember.StateManager.create({
+      stateOne: Ember.State.create({
+        changeToStateTwo: function(manager, context){
+          manager.transitionTo('stateTwo', context)
+        }
+      }),
+      stateTwo: Ember.State.create({})
+    })
+    ```
 
-  @method transitionTo
-  @static
-  @param {String} target
+    @method transitionTo
+    @static
+    @param {String} target
   */
 
   transitionTo: function(target) {
 
     var transitionFunction = function(stateManager, contextOrEvent) {
-      var contexts, transitionArgs, Event;
-      Event = Ember.$ && Ember.$.Event;
+      var contexts = [],
+          Event = Ember.$ && Ember.$.Event;
 
-      if (contextOrEvent && (Event && contextOrEvent instanceof Event) && contextOrEvent.hasOwnProperty('contexts')) {
-        contexts = contextOrEvent.contexts.slice();
+      if (contextOrEvent && (Event && contextOrEvent instanceof Event)) {
+        if (contextOrEvent.hasOwnProperty('contexts')) {
+          contexts = contextOrEvent.contexts.slice();
+        }
       }
       else {
         contexts = [].slice.call(arguments, 1);

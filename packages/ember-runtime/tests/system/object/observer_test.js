@@ -49,13 +49,13 @@ testBoth('observer on subclass', function(get, set) {
   equal(get(obj, 'count'), 0, 'should not invoke observer after change');
 
   set(obj, 'baz', "BAZ");
-  equal(get(obj, 'count'), 1, 'should not invoke observer after change');
+  equal(get(obj, 'count'), 1, 'should invoke observer after change');
 
 });
 
 testBoth('observer on instance', function(get, set) {
 
-  var obj = Ember.Object.create({
+  var obj = Ember.Object.createWithMixins({
 
     count: 0,
 
@@ -84,7 +84,7 @@ testBoth('observer on instance overridding class', function(get, set) {
 
   });
 
-  var obj = MyClass.create({
+  var obj = MyClass.createWithMixins({
     foo: Ember.observer(function() {
       set(this, 'count', get(this, 'count')+1);
     }, 'baz') // <-- change property we observe
@@ -96,13 +96,13 @@ testBoth('observer on instance overridding class', function(get, set) {
   equal(get(obj, 'count'), 0, 'should not invoke observer after change');
 
   set(obj, 'baz', "BAZ");
-  equal(get(obj, 'count'), 1, 'should not invoke observer after change');
+  equal(get(obj, 'count'), 1, 'should invoke observer after change');
 
 });
 
 testBoth('observer should not fire after being destroyed', function(get, set) {
 
-  var obj = Ember.Object.create({
+  var obj = Ember.Object.createWithMixins({
     count: 0,
     foo: Ember.observer(function() {
       set(this, 'count', get(this, 'count')+1);
@@ -114,9 +114,9 @@ testBoth('observer should not fire after being destroyed', function(get, set) {
   Ember.run(function() { obj.destroy(); });
 
   if (Ember.assert) {
-    raises(function() {
+    expectAssertion(function() {
       set(obj, 'bar', "BAZ");
-    }, Error, "raises error when setting a property");
+    }, "calling set on destroyed object");
   } else {
     set(obj, 'bar', "BAZ");
   }
@@ -169,11 +169,11 @@ testBoth('chain observer on class', function(get, set) {
     }, 'bar.baz')
   });
 
-  var obj1 = MyClass.create({
+  var obj1 = MyClass.createWithMixins({
     bar: { baz: 'biff' }
   });
 
-  var obj2 = MyClass.create({
+  var obj2 = MyClass.createWithMixins({
     bar: { baz: 'biff2' },
     bar2: { baz: 'biff3' },
 

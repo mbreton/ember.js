@@ -1,17 +1,14 @@
 require('ember-metal/core');
 require('ember-metal/platform');
 require('ember-metal/utils');
-require('ember-metal/accessors');
+require('ember-metal/property_get');
 
 /**
 @module ember-metal
 */
 
-var GUID_KEY = Ember.GUID_KEY,
-    META_KEY = Ember.META_KEY,
-    EMPTY_META = Ember.EMPTY_META,
+var META_KEY = Ember.META_KEY,
     metaFor = Ember.meta,
-    o_create = Ember.create,
     objectDefineProperty = Ember.platform.defineProperty;
 
 var MANDATORY_SETTER = Ember.ENV.MANDATORY_SETTER;
@@ -21,8 +18,8 @@ var MANDATORY_SETTER = Ember.ENV.MANDATORY_SETTER;
 //
 
 /**
-  Objects of this type can implement an interface to responds requests to
-  get and set.  The default implementation handles simple properties.
+  Objects of this type can implement an interface to respond to requests to
+  get and set. The default implementation handles simple properties.
 
   You generally won't need to create or subclass this directly.
 
@@ -31,54 +28,67 @@ var MANDATORY_SETTER = Ember.ENV.MANDATORY_SETTER;
   @private
   @constructor
 */
-var Descriptor = Ember.Descriptor = function() {};
+Ember.Descriptor = function() {};
 
 // ..........................................................
 // DEFINING PROPERTIES API
 //
 
+var MANDATORY_SETTER_FUNCTION = Ember.MANDATORY_SETTER_FUNCTION = function(value) {
+  Ember.assert("You must use Ember.set() to access this property (of " + this + ")", false);
+};
+
+var DEFAULT_GETTER_FUNCTION = Ember.DEFAULT_GETTER_FUNCTION = function(name) {
+  return function() {
+    var meta = this[META_KEY];
+    return meta && meta.values[name];
+  };
+};
+
 /**
   @private
 
-  NOTE: This is a low-level method used by other parts of the API.  You almost
-  never want to call this method directly.  Instead you should use Ember.mixin()
-  to define new properties.
+  NOTE: This is a low-level method used by other parts of the API. You almost
+  never want to call this method directly. Instead you should use
+  `Ember.mixin()` to define new properties.
 
-  Defines a property on an object.  This method works much like the ES5
-  Object.defineProperty() method except that it can also accept computed
+  Defines a property on an object. This method works much like the ES5
+  `Object.defineProperty()` method except that it can also accept computed
   properties and other special descriptors.
 
-  Normally this method takes only three parameters.  However if you pass an
-  instance of Ember.Descriptor as the third param then you can pass an optional
-  value as the fourth parameter.  This is often more efficient than creating
-  new descriptor hashes for each property.
+  Normally this method takes only three parameters. However if you pass an
+  instance of `Ember.Descriptor` as the third param then you can pass an
+  optional value as the fourth parameter. This is often more efficient than
+  creating new descriptor hashes for each property.
 
   ## Examples
 
-      // ES5 compatible mode
-      Ember.defineProperty(contact, 'firstName', {
-        writable: true,
-        configurable: false,
-        enumerable: true,
-        value: 'Charles'
-      });
+  ```javascript
+  // ES5 compatible mode
+  Ember.defineProperty(contact, 'firstName', {
+    writable: true,
+    configurable: false,
+    enumerable: true,
+    value: 'Charles'
+  });
 
-      // define a simple property
-      Ember.defineProperty(contact, 'lastName', undefined, 'Jolley');
+  // define a simple property
+  Ember.defineProperty(contact, 'lastName', undefined, 'Jolley');
 
-      // define a computed property
-      Ember.defineProperty(contact, 'fullName', Ember.computed(function() {
-        return this.firstName+' '+this.lastName;
-      }).property('firstName', 'lastName').cacheable());
+  // define a computed property
+  Ember.defineProperty(contact, 'fullName', Ember.computed(function() {
+    return this.firstName+' '+this.lastName;
+  }).property('firstName', 'lastName'));
+  ```
 
   @method defineProperty
   @for Ember
   @param {Object} obj the object to define this property on. This may be a prototype.
   @param {String} keyName the name of the property
-  @param {Ember.Descriptor} [desc] an instance of Ember.Descriptor (typically a
+  @param {Ember.Descriptor} [desc] an instance of `Ember.Descriptor` (typically a
     computed property) or an ES5 descriptor.
     You must provide this or `data` but not both.
-  @param {anything} [data] something other than a descriptor, that will
+  @param {*} [data] something other than a descriptor, that will
     become the explicit value of this property.
 */
 Ember.defineProperty = function(obj, keyName, desc, data, meta) {
@@ -118,13 +128,8 @@ Ember.defineProperty = function(obj, keyName, desc, data, meta) {
         objectDefineProperty(obj, keyName, {
           configurable: true,
           enumerable: true,
-          set: function() {
-            Ember.assert('Must use Ember.set() to access this property', false);
-          },
-          get: function() {
-            var meta = this[META_KEY];
-            return meta && meta.values[keyName];
-          }
+          set: MANDATORY_SETTER_FUNCTION,
+          get: DEFAULT_GETTER_FUNCTION(keyName)
         });
       } else {
         obj[keyName] = data;

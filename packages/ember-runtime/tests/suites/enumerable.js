@@ -219,7 +219,7 @@ var EnumerableTests = Ember.Object.extend({
   */
   canTestMutation: Ember.computed(function() {
     return this.mutate !== EnumerableTests.prototype.mutate;
-  }).property().cacheable(),
+  }),
 
   /**
     Invoked to actually run the test - overridden by mixins
@@ -311,6 +311,7 @@ require('ember-runtime/~tests/suites/enumerable/invoke');
 require('ember-runtime/~tests/suites/enumerable/lastObject');
 require('ember-runtime/~tests/suites/enumerable/map');
 require('ember-runtime/~tests/suites/enumerable/reduce');
+require('ember-runtime/~tests/suites/enumerable/reject');
 require('ember-runtime/~tests/suites/enumerable/some');
 require('ember-runtime/~tests/suites/enumerable/toArray');
 require('ember-runtime/~tests/suites/enumerable/uniq');
