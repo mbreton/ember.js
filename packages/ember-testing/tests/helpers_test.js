@@ -1,6 +1,6 @@
 var App;
 
-module("ember-testing", {
+module("ember-testing Helpers", {
   teardown: function() {
     Ember.run(App, App.destroy);
     App.removeTestHelpers();
@@ -14,6 +14,8 @@ test("Ember.Application#injectTestHelpers/#removeTestHelpers", function() {
   ok(!App.testHelpers.visit);
   ok(!window.click);
   ok(!App.testHelpers.click);
+  ok(!window.keyEvent);
+  ok(!App.testHelpers.keyEvent);
   ok(!window.fillIn);
   ok(!App.testHelpers.fillIn);
   ok(!window.wait);
@@ -25,6 +27,8 @@ test("Ember.Application#injectTestHelpers/#removeTestHelpers", function() {
   ok(App.testHelpers.visit);
   ok(window.click);
   ok(App.testHelpers.click);
+  ok(window.keyEvent);
+  ok(App.testHelpers.keyEvent);
   ok(window.fillIn);
   ok(App.testHelpers.fillIn);
   ok(window.wait);
@@ -36,6 +40,8 @@ test("Ember.Application#injectTestHelpers/#removeTestHelpers", function() {
   ok(!App.testHelpers.visit);
   ok(!window.click);
   ok(!App.testHelpers.click);
+  ok(!window.keyEvent);
+  ok(!App.testHelpers.keyEvent);
   ok(!window.fillIn);
   ok(!App.testHelpers.fillIn);
   ok(!window.wait);
@@ -82,62 +88,14 @@ test("Ember.Test.registerHelper/unregisterHelper", function() {
 
 });
 
-test("Setting a test adapter manually", function() {
-  expect(1);
-  var originalAdapter = Ember.Test.adapter, CustomAdapter;
-
-  CustomAdapter = Ember.Test.Adapter.extend({
-    asyncStart: function() {
-      ok(true, "Correct adapter was used");
-    }
-  });
-
-  Ember.run(function() {
-    App = Ember.Application.create();
-    Ember.Test.adapter = CustomAdapter.create();
-    App.setupForTesting();
-  });
-
-  Ember.Test.adapter.asyncStart();
-
-  Ember.Test.adapter = originalAdapter;
-});
-
-test("QUnitAdapter is used by default", function() {
-  expect(1);
-  var originalAdapter = Ember.Test.adapter, CustomAdapter;
-
-  Ember.Test.adapter = null;
-
-  Ember.run(function() {
-    App = Ember.Application.create();
-    App.setupForTesting();
-  });
-
-  ok(Ember.Test.adapter instanceof Ember.Test.QUnitAdapter);
-
-  Ember.Test.adapter = originalAdapter;
-});
-
-test("Concurrent wait calls are supported", function() {
+test("`wait` helper can be passed a resolution value", function() {
   expect(4);
-  var originalAdapter = Ember.Test.adapter,
-      CustomAdapter,
-      asyncStartCalled = 0,
-      asyncEndCalled = 0;
 
-  CustomAdapter = Ember.Test.QUnitAdapter.extend({
-    asyncStart: function() {
-      asyncStartCalled++;
-      this._super();
-    },
-    asyncEnd: function() {
-      asyncEndCalled++;
-      this._super();
-    }
+  var promise, wait;
+
+  promise = new Ember.RSVP.Promise(function(resolve) {
+    Ember.run(null, resolve, 'promise');
   });
-
-  Ember.Test.adapter = CustomAdapter.create();
 
   Ember.run(function() {
     App = Ember.Application.create();
@@ -148,14 +106,92 @@ test("Concurrent wait calls are supported", function() {
 
   Ember.run(App, App.advanceReadiness);
 
-  App.testHelpers.wait().then(function() {
-    equal(asyncStartCalled, 1, "asyncStart was called once");
-    equal(asyncEndCalled, 0, "asyncEnd hasn't been called yet");
-  });
-  App.testHelpers.wait().then(function() {
-    equal(asyncStartCalled, 1, "asyncStart was called once");
-    equal(asyncEndCalled, 1, "asyncEnd was called once");
-    Ember.Test.adapter = originalAdapter;
+  wait = App.testHelpers.wait;
+
+  wait('text').then(function(val) {
+    equal(val, 'text', 'can resolve to a string');
+    return wait(1);
+  }).then(function(val) {
+    equal(val, 1, 'can resolve to an integer');
+    return wait({ age: 10 });
+  }).then(function(val) {
+    deepEqual(val, { age: 10 }, 'can resolve to an object');
+    return wait(promise);
+  }).then(function(val) {
+    equal(val, 'promise', 'can resolve to a promise resolution value');
   });
 
+});
+
+test("`click` triggers appropriate events in order", function() {
+  expect(4);
+
+  var click, wait, events;
+
+  Ember.run(function() {
+    App = Ember.Application.create();
+    App.setupForTesting();
+  });
+
+  App.IndexView = Ember.View.extend({
+    classNames: 'index-view',
+
+    didInsertElement: function() {
+      this.$().on('mousedown focusin mouseup click', function(e) {
+        events.push(e.type);
+      });
+    },
+
+    Checkbox: Ember.Checkbox.extend({
+      click: function() {
+        events.push('click:' + this.get('checked'));
+      },
+
+      change: function() {
+        events.push('change:' + this.get('checked'));
+      }
+    })
+  });
+
+  Ember.TEMPLATES.index = Ember.Handlebars.compile('{{input type="text"}} {{view view.Checkbox}} {{textarea}}');
+
+  App.injectTestHelpers();
+
+  Ember.run(App, App.advanceReadiness);
+
+  click = App.testHelpers.click;
+  wait  = App.testHelpers.wait;
+
+  wait().then(function() {
+    events = [];
+    return click('.index-view');
+  }).then(function() {
+    deepEqual(events,
+      ['mousedown', 'mouseup', 'click'],
+      'fires events in order');
+  }).then(function() {
+    events = [];
+    return click('.index-view input[type=text]');
+  }).then(function() {
+    deepEqual(events,
+      ['mousedown', 'focusin', 'mouseup', 'click'],
+      'fires focus events on inputs');
+  }).then(function() {
+    events = [];
+    return click('.index-view textarea');
+  }).then(function() {
+    deepEqual(events,
+      ['mousedown', 'focusin', 'mouseup', 'click'],
+      'fires focus events on textareas');
+  }).then(function() {
+    // In IE (< 8), the change event only fires when the value changes before element focused.
+    Ember.$('.index-view input[type=checkbox]').focus();
+    events = [];
+    return click('.index-view input[type=checkbox]');
+  }).then(function() {
+    // i.e. mousedown, mouseup, change:true, click, click:true
+    // Firefox differs so we can't assert the exact ordering here.
+    // See https://bugzilla.mozilla.org/show_bug.cgi?id=843554.
+    equal(events.length, 5, 'fires click and change on checkboxes');
+  });
 });

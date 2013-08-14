@@ -39,6 +39,11 @@ Ember.Handlebars.EachView = Ember.CollectionView.extend(Ember._Metamorph, {
     return this._super();
   },
 
+  _assertArrayLike: function(content) {
+    Ember.assert("The value that #each loops over must be an Array. You passed " + content.constructor + ", but it should have been an ArrayController", !Ember.ControllerMixin.detect(content) || (content && content.isGenerated) || content instanceof Ember.ArrayController);
+    Ember.assert("The value that #each loops over must be an Array. You passed " + ((Ember.ControllerMixin.detect(content) && content.get('model') !== undefined) ? ("" + content.get('model') + " (wrapped in " + content + ")") : ("" + content)), Ember.Array.detect(content));
+  },
+
   disableContentObservers: function(callback) {
     Ember.removeBeforeObserver(this, 'content', null, '_contentWillChange');
     Ember.removeObserver(this, 'content', null, '_contentDidChange');
@@ -269,6 +274,12 @@ GroupedEach.prototype = {
   </div>
   ```
 
+  If an `itemViewClass` is defined on the helper, and therefore the helper is not
+  being used as a block, an `emptyViewClass` can also be provided optionally.
+  The `emptyViewClass` will match the behavior of the `{{else}}` condition
+  described above. That is, the `emptyViewClass` will render if the collection
+  is empty.
+
   ### Representing each item with a Controller.
   By default the controller lookup within an `{{#each}}` block will be
   the controller of the template where the `{{#each}}` was used. If each
@@ -282,7 +293,7 @@ GroupedEach.prototype = {
 
   ```javascript
   App.DeveloperController = Ember.ObjectController.extend({
-    isAvailableForHire: function(){
+    isAvailableForHire: function() {
       return !this.get('content.isEmployed') && this.get('content.isSeekingWork');
     }.property('isEmployed', 'isSeekingWork')
   })

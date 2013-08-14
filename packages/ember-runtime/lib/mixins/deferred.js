@@ -1,7 +1,7 @@
 var RSVP = requireModule("rsvp");
 
-RSVP.configure('async', function(callback, binding) {
-  Ember.run.schedule('actions', binding, callback);
+RSVP.configure('async', function(callback, promise) {
+  Ember.run.schedule('actions', promise, callback, promise);
 });
 
 /**
@@ -14,7 +14,6 @@ var get = Ember.get;
 /**
   @class Deferred
   @namespace Ember
-  @extends Ember.Mixin
  */
 Ember.DeferredMixin = Ember.Mixin.create({
   /**
@@ -53,7 +52,7 @@ Ember.DeferredMixin = Ember.Mixin.create({
     deferred = get(this, '_deferred');
     promise = deferred.promise;
 
-    if (value === this){
+    if (value === this) {
       deferred.resolve(promise);
     } else {
       deferred.resolve(value);

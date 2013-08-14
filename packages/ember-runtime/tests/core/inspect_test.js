@@ -33,8 +33,16 @@ test("object", function() {
 });
 
 test("array", function() {
-  // this could be better, but let's not let this method get
-  // out of control unless we want to go all the way, a la
-  // JSDump
-  equal(inspect([1,2,3]), "{0: 1, 1: 2, 2: 3}");
+  equal(inspect([1,2,3]), "[1,2,3]");
+});
+
+test("regexp", function() {
+  equal(inspect(/regexp/), "/regexp/");
+});
+
+test("date", function() {
+  var inspected = inspect(new Date("Sat Apr 30 2011 13:24:11"));
+  ok(inspected.match(/Sat Apr 30/), "The inspected date has its date");
+  ok(inspected.match(/2011/), "The inspected date has its year");
+  ok(inspected.match(/13:24:11/), "The inspected date has its time");
 });

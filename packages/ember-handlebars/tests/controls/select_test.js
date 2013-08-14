@@ -231,7 +231,7 @@ test("multiple selections can be set when multiple=true", function() {
   Ember.run(function() { select.set('selection', Ember.A([tom, brennain])); });
 
   deepEqual(
-    select.$(':selected').map(function(){ return trim(Ember.$(this).text());}).toArray(),
+    select.$(':selected').map(function() { return trim(Ember.$(this).text());}).toArray(),
     ['Tom', 'Brennain'],
     "After changing it, selection should be correct");
 });
@@ -259,7 +259,7 @@ test("multiple selections can be set by changing in place the selection array wh
   });
 
   deepEqual(
-    select.$(':selected').map(function(){ return trim(Ember.$(this).text());}).toArray(),
+    select.$(':selected').map(function() { return trim(Ember.$(this).text());}).toArray(),
     ['David', 'Brennain'],
     "After updating the selection array in-place, selection should be correct");
 });
@@ -305,6 +305,93 @@ test("multiple selections can be set indirectly via bindings and in-place when m
 
   deepEqual(select.get('content'), [david, cyril], "After updating bound content, content should be correct");
   deepEqual(select.get('selection'), [cyril], "After updating bound selection, selection should be correct");
+});
+
+test("select with group can groupe options", function() {
+  var content = Ember.A([
+    { firstName: 'Yehuda', organization: 'Tilde' },
+    { firstName: 'Tom', organization: 'Tilde' },
+    { firstName: 'Keith', organization: 'Envato' }
+  ]);
+
+  Ember.run(function() {
+    select.set('content', content),
+    select.set('optionGroupPath', 'organization');
+    select.set('optionLabelPath', 'content.firstName');
+  });
+
+  append();
+
+  equal(select.$('optgroup').length, 2);
+
+  var labels = [];
+  select.$('optgroup').each(function() {
+    labels.push(this.label);
+  });
+  equal(labels.join(''), ['TildeEnvato']);
+
+  equal(select.$('optgroup').first().text().replace(/\s+/g,''), 'YehudaTom');
+  equal(select.$('optgroup').last().text().replace(/\s+/g,''), 'Keith');
+});
+
+test("select with group doesn't break options", function() {
+  var content = Ember.A([
+    { id: 1, firstName: 'Yehuda', organization: 'Tilde' },
+    { id: 2, firstName: 'Tom', organization: 'Tilde' },
+    { id: 3, firstName: 'Keith', organization: 'Envato' }
+  ]);
+
+  Ember.run(function() {
+    select.set('content', content),
+    select.set('optionGroupPath', 'organization');
+    select.set('optionLabelPath', 'content.firstName');
+    select.set('optionValuePath', 'content.id');
+  });
+
+  append();
+
+  equal(select.$('option').length, 3);
+  equal(select.$().text().replace(/\s+/g,''), 'YehudaTomKeith');
+
+  Ember.run(function() {
+    content.set('firstObject.firstName', 'Peter');
+  });
+  equal(select.$().text(), 'PeterTomKeith');
+
+  select.$('option').get(0).selected = true;
+  select.$().trigger('change');
+  deepEqual(select.get('selection'), content.get('firstObject'));
+});
+
+test("select with group observs its content", function() {
+  var wycats = { firstName: 'Yehuda', organization: 'Tilde' };
+  var content = Ember.A([
+    wycats
+  ]);
+
+  Ember.run(function() {
+    select.set('content', content),
+    select.set('optionGroupPath', 'organization');
+    select.set('optionLabelPath', 'content.firstName');
+  });
+
+  append();
+
+  Ember.run(function() {
+    content.pushObject({ firstName: 'Keith', organization: 'Envato' });
+  });
+
+  equal(select.$('optgroup').length, 2);
+  equal(select.$('optgroup[label=Envato]').length, 1);
+
+  Ember.run(function() {
+    select.set('optionGroupPath', 'firstName');
+  });
+  var labels = [];
+  select.$('optgroup').each(function() {
+    labels.push(this.label);
+  });
+  equal(labels.join(''), 'YehudaKeith');
 });
 
 test("selection uses the same array when multiple=true", function() {
@@ -449,6 +536,25 @@ test("handles null content", function() {
   equal(select.get('element').selectedIndex, -1, "should have no selection");
 });
 
+test("valueBinding handles 0 as initiated value (issue #2763)", function() {
+  var indirectData = Ember.Object.create({
+    value: 0
+  });
+
+  Ember.run(function() {
+    select.destroy(); // Destroy the existing select
+
+    select = Ember.Select.extend({
+      content: Ember.A([1,0]),
+      indirectData: indirectData,
+      valueBinding: 'indirectData.value'
+    }).create();
+
+    append();
+  });
+
+  equal(select.get('value'), 0, "Value property should equal 0");
+});
 
 test("should be able to select an option and then reselect the prompt", function() {
   Ember.run(function() {
@@ -570,12 +676,12 @@ test("works from a template with bindings", function() {
   equal(select.$().text(), "Pick a person:Yehuda KatzTom DalePeter WagenetErik Bryn", "Option values were rendered");
   equal(select.get('selection'), null, "Nothing has been selected");
 
-  Ember.run(function(){
+  Ember.run(function() {
     application.selectedPersonController.set('person', erik);
   });
 
   equal(select.get('selection'), erik, "Selection was updated through binding");
-  Ember.run(function(){
+  Ember.run(function() {
     application.peopleController.pushObject(Person.create({id: 5, firstName: "James", lastName: "Rosen"}));
   });
 
@@ -619,7 +725,7 @@ test("upon content change with Array-like content, the DOM should reflect the se
       sylvain = {id: 5, name: 'Sylvain'};
 
   var proxy = Ember.ArrayProxy.create({
-    content: Ember.A([]),
+    content: Ember.A(),
     selectedOption: sylvain
   });
 

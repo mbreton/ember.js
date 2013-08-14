@@ -12,7 +12,7 @@ var registerRepeatHelper = function() {
   Ember.Handlebars.helper('repeat', function(value, options) {
     var count = options.hash.count;
     var a = [];
-    while(a.length < count){
+    while(a.length < count) {
         a.push(value);
     }
     return a.join('');
@@ -24,7 +24,7 @@ module("Handlebars bound helpers", {
     window.TemplateTests = Ember.Namespace.create();
   },
   teardown: function() {
-    Ember.run(function(){
+    Ember.run(function() {
       if (view) {
         view.destroy();
       }
@@ -251,5 +251,34 @@ test("bound helpers should not be invoked with blocks", function() {
   expectAssertion(function() {
     appendView();
   }, /registerBoundHelper-generated helpers do not support use with Handlebars blocks/i);
+});
+
+test("should observe dependent keys passed to registerBoundHelper", function() {
+  try {
+    expect(2);
+
+    var SimplyObject = Ember.Object.create({
+      firstName: 'Jim',
+      lastName: 'Owen'
+    });
+
+    Ember.Handlebars.registerBoundHelper('fullName', function(value){
+      return value.get('firstName') + ' ' + value.get('lastName');
+    }, 'firstName', 'lastName');
+
+    view = Ember.View.create({
+      template: Ember.Handlebars.compile('{{fullName this}}'),
+      context: SimplyObject
+    });
+    appendView(view);
+
+    equal(view.$().text(), 'Jim Owen', 'simply render the helper');
+
+    Ember.run(SimplyObject, SimplyObject.set, 'firstName', 'Tom');
+
+    equal(view.$().text(), 'Tom Owen', 'simply render the helper');
+  } finally {
+    delete Ember.Handlebars.helpers['fullName'];
+  }
 });
 

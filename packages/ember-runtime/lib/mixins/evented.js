@@ -37,7 +37,6 @@
 
   @class Evented
   @namespace Ember
-  @extends Ember.Mixin
  */
 Ember.Evented = Ember.Mixin.create({
 
@@ -123,7 +122,7 @@ Ember.Evented = Ember.Mixin.create({
   },
 
   /**
-    Cancels subscription for give name, target, and method.
+    Cancels subscription for given name, target, and method.
 
     @method off
     @param {String} name The name of the event

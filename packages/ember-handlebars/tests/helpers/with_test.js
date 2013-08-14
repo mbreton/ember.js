@@ -23,7 +23,7 @@ module("Handlebars {{#with}} helper", {
   },
 
   teardown: function() {
-    Ember.run(function(){
+    Ember.run(function() {
       view.destroy();
     });
     Ember.lookup = originalLookup;
@@ -73,7 +73,7 @@ module("Handlebars {{#with}} globals helper", {
   },
 
   teardown: function() {
-    Ember.run(function(){
+    Ember.run(function() {
       view.destroy();
     });
     Ember.lookup = originalLookup;
@@ -148,6 +148,35 @@ test("it should support #with this as qux", function() {
   });
 
   equal(view.$().text(), "l'Pivots", "should update");
+
+  Ember.run(function() {
+    view.destroy();
+  });
+});
+
+module("Handlebars {{#with foo}} insideGroup");
+
+test("it should render without fail", function() {
+  var View = Ember.View.extend({
+    template: Ember.Handlebars.compile("{{#view view.childView}}{{#with person}}{{name}}{{/with}}{{/view}}"),
+    controller: Ember.Object.create({ person: { name: "Ivan IV Vasilyevich" } }),
+    childView: Ember.View.extend({
+      render: function(){
+        this.set('templateData.insideGroup', true);
+        return this._super.apply(this, arguments);
+      }
+    })
+  });
+
+  var view = View.create();
+  appendView(view);
+  equal(view.$().text(), "Ivan IV Vasilyevich", "should be properly scoped");
+
+  Ember.run(function() {
+    Ember.set(view, 'controller.person.name', "Ivan the Terrible");
+  });
+
+  equal(view.$().text(), "Ivan the Terrible", "should update");
 
   Ember.run(function() {
     view.destroy();

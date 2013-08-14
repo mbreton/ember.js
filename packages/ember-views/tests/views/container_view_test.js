@@ -1,10 +1,11 @@
-var get = Ember.get, set = Ember.set, container, view;
+var get = Ember.get, set = Ember.set, container, view, otherContainer;
 
 module("ember-views/views/container_view_test", {
   teardown: function() {
     Ember.run(function() {
       container.destroy();
       if (view) { view.destroy(); }
+      if (otherContainer) { otherContainer.destroy(); }
     });
   }
 });
@@ -34,7 +35,7 @@ test("should be able to insert views after the DOM representation is created", f
   equal(view._parentView, container, 'view\'s _parentView is the container');
   equal(Ember.$.trim(container.$().text()), "This is my moment");
 
-  Ember.run(function(){
+  Ember.run(function() {
     container.destroy();
   });
 
@@ -54,6 +55,32 @@ test("should be able to observe properties that contain child views", function()
     container.appendTo('#qunit-fixture');
   });
   ok(container.get('displayIsDisplayed'), "can bind to child view");
+});
+
+test("childViews inherit their parents iocContainer, and retain the original container even when moved", function() {
+  container = Ember.ContainerView.create({
+    container: {}
+  });
+
+  otherContainer = Ember.ContainerView.create({
+    container: {}
+  });
+
+  view = Ember.View.create();
+
+  container.pushObject(view);
+
+  equal(view.get('parentView'), container, "sets the parent view after the childView is appended");
+  equal(get(view, 'container'), container.container, "inherits its parentViews iocContainer");
+
+  container.removeObject(view);
+
+  equal(get(view, 'container'), container.container, "leaves existing iocContainer alone");
+
+  otherContainer.pushObject(view);
+
+  equal(view.get('parentView'), otherContainer, "sets the new parent view after the childView is appended");
+  equal(get(view, 'container'), container.container, "still inherits its original parentViews iocContainer");
 });
 
 test("should set the parentView property on views that are added to the child views array", function() {
@@ -79,7 +106,7 @@ test("should set the parentView property on views that are added to the child vi
     container.appendTo('#qunit-fixture');
   });
 
-  Ember.run(function(){
+  Ember.run(function() {
     container.pushObject(view);
   });
 
@@ -89,7 +116,7 @@ test("should set the parentView property on views that are added to the child vi
       thirdView = View.create(),
       fourthView = View.create();
 
-  Ember.run(function(){
+  Ember.run(function() {
     container.pushObject(secondView);
     container.replace(1, 0, [thirdView, fourthView]);
   });
@@ -111,6 +138,29 @@ test("should set the parentView property on views that are added to the child vi
     secondView.destroy();
     thirdView.destroy();
     fourthView.destroy();
+  });
+});
+
+test("should trigger parentViewDidChange when parentView is changed", function() {
+  container = Ember.ContainerView.create();
+
+  var secondContainer = Ember.ContainerView.create();
+  var parentViewChanged = 0;
+
+  var View = Ember.View.extend({
+    parentViewDidChange: function() { parentViewChanged++; }
+  });
+
+  view = View.create();
+
+  container.pushObject(view);
+  container.removeChild(view);
+  secondContainer.pushObject(view);
+
+  equal(parentViewChanged, 3);
+
+  Ember.run(function() {
+    secondContainer.destroy();
   });
 });
 
@@ -584,13 +634,13 @@ test("Child view can only be added to one container at a time", function () {
     container.set('currentView', view);
   });
 
-  expectAssertion(function(){
+  expectAssertion(function() {
     Ember.run(function() {
       secondContainer.set('currentView', view);
     });
   });
 
-  expectAssertion(function(){
+  expectAssertion(function() {
     Ember.run(function() {
       secondContainer.pushObject(view);
     });
@@ -600,3 +650,43 @@ test("Child view can only be added to one container at a time", function () {
     secondContainer.destroy();
   });
 });
+
+test("if a containerView appends a child in its didInsertElement event, the didInsertElement event of the child view should be fired once", function () {
+
+  var counter = 0,
+      root = Ember.ContainerView.create({});
+
+  container = Ember.ContainerView.create({
+
+    didInsertElement: function() {
+
+      var view = Ember.ContainerView.create({
+        didInsertElement: function() {
+          counter++;
+        }
+      });
+
+      this.pushObject(view);
+
+    }
+
+  });
+
+
+  Ember.run(function() {
+    root.appendTo('#qunit-fixture');
+  });
+
+  Ember.run(function() {
+    root.pushObject(container);
+  });
+
+  equal(container.get('childViews').get('length'), 1 , "containerView should only have a child");
+  equal(counter, 1 , "didInsertElement should be fired once");
+
+  Ember.run(function() {
+    root.destroy();
+  });
+
+});
+

@@ -78,6 +78,19 @@ test("prevents XSS injection via `style`", function() {
   equal('<span></span><div style="color:blue;&quot; xss=&quot;true&quot; style=&quot;color:red;">', buffer.string());
 });
 
+test("prevents XSS injection via `tagName`", function() {
+  var buffer = new Ember.RenderBuffer('cool-div><div xss="true"');
+
+  buffer.push('<span></span>'); // We need the buffer to not be empty so we use the string path
+  buffer.pushOpeningTag();
+  buffer.begin('span><span xss="true"');
+  buffer.pushOpeningTag();
+  buffer.pushClosingTag();
+  buffer.pushClosingTag();
+
+  equal('<span></span><cool-divdivxsstrue><spanspanxsstrue></spanspanxsstrue></cool-divdivxsstrue>', buffer.string());
+});
+
 test("handles null props - Issue #2019", function() {
   var buffer = new Ember.RenderBuffer('div');
 
@@ -88,12 +101,12 @@ test("handles null props - Issue #2019", function() {
   equal('<span></span><div>', buffer.string());
 });
 
-test("handles browsers like Firefox < 11 that don't support outerHTML Issue #1952", function(){
+test("handles browsers like Firefox < 11 that don't support outerHTML Issue #1952", function() {
   var buffer = new Ember.RenderBuffer('div');
   buffer.pushOpeningTag();
   // Make sure element.outerHTML is falsy to trigger the fallback.
   var elementStub = '<div></div>';
-  buffer.element = function(){ return elementStub; };
+  buffer.element = function() { return elementStub; };
   // IE8 returns `element name as upper case with extra whitespace.
   equal(elementStub, buffer.string().toLowerCase().replace(/\s/g, ''));
 });

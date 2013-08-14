@@ -5,9 +5,8 @@ var get = Ember.get;
 @submodule ember-routing
 */
 
-Ember.controllerFor = function(container, controllerName, context, lookupOptions) {
-  return container.lookup('controller:' + controllerName, lookupOptions) ||
-         Ember.generateController(container, controllerName, context);
+Ember.controllerFor = function(container, controllerName, lookupOptions) {
+  return container.lookup('controller:' + controllerName, lookupOptions);
 };
 /*
   Generates a controller automatically if none was provided.
@@ -21,21 +20,25 @@ Ember.generateController = function(container, controllerName, context) {
   if (context && Ember.isArray(context)) {
     DefaultController = container.resolve('controller:array');
     controller = DefaultController.extend({
-      content: context
+      isGenerated: true
     });
   } else if (context) {
     DefaultController = container.resolve('controller:object');
     controller = DefaultController.extend({
-      content: context
+      isGenerated: true
     });
   } else {
     DefaultController = container.resolve('controller:basic');
-    controller = DefaultController.extend();
+    controller = DefaultController.extend({
+      isGenerated: true
+    });
   }
 
   controller.toString = function() {
     return "(generated " + controllerName + " controller)";
   };
+
+  controller.isGenerated = true;
 
   fullName = 'controller:' + controllerName;
   container.register(fullName, controller);

@@ -136,7 +136,7 @@ test("{{render}} helper should raise an error when a given controller name does 
 
   Ember.TEMPLATES['home'] = compile("<p>BYE</p>");
 
-  expectAssertion(function(){
+  expectAssertion(function() {
     appendView(view);
   }, 'The controller name you supplied \'postss\' did not resolve to a controller.');
 });
@@ -217,6 +217,32 @@ test("{{render}} helper should render templates with models multiple times", fun
   } else {
     deepEqual(postController1.get('model'), { title: "I am new" });
   }
+});
+
+test("{{render}} helper should not treat invocations with falsy contexts as context-less", function() {
+  var template = "<h1>HI</h1> {{render 'post' zero}} {{render 'post' nonexistent}}";
+
+  view = Ember.View.create({
+    controller: Ember.Controller.createWithMixins({ 
+      container: container,
+      zero: false
+    }),
+    template: Ember.Handlebars.compile(template)
+  });
+
+  var PostController = Ember.ObjectController.extend();
+  container.register('controller:post', PostController, {singleton: false});
+
+  Ember.TEMPLATES['post'] = compile("<p>{{#unless content}}NOTHING{{/unless}}</p>");
+
+  appendView(view);
+
+  var postController1 = view.get('_childViews')[0].get('controller');
+  var postController2 = view.get('_childViews')[1].get('controller');
+
+  ok(view.$().text().match(/^HI ?NOTHING ?NOTHING$/));
+  equal(postController1.get('model'), 0);
+  equal(postController2.get('model'), undefined);
 });
 
 test("{{render}} helper should render templates both with and without models", function() {

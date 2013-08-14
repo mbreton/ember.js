@@ -71,6 +71,7 @@ var get = Ember.get,
   'view:blog/post' //=> Blog.PostView
   'view:basic' //=> Ember.View
   'foo:post' //=> App.PostFoo
+  'model:post' //=> App.Post
   ```
 
   @class DefaultResolver
@@ -97,6 +98,11 @@ Ember.DefaultResolver = Ember.Object.extend({
   resolve: function(fullName) {
     var parsedName = this.parseName(fullName),
         typeSpecificResolveMethod = this[parsedName.resolveMethodName];
+
+    if (!parsedName.name || !parsedName.type) {
+      throw new TypeError("Invalid fullName: `" + fullName + "`, must of of the form `type:name` ");
+    }
+
     if (typeSpecificResolveMethod) {
       var resolved = typeSpecificResolveMethod.call(this, parsedName);
       if (resolved) { return resolved; }
@@ -191,6 +197,17 @@ Ember.DefaultResolver = Ember.Object.extend({
     this.useRouterNaming(parsedName);
     return this.resolveOther(parsedName);
   },
+
+  /**
+    @protected
+    @method resolveModel
+  */
+  resolveModel: function(parsedName) {
+    var className = classify(parsedName.name),
+        factory = get(parsedName.root, className);
+
+     if (factory) { return factory; }
+  },
   /**
     Look up the specified object (from parsedName) on the appropriate
     namespace (usually on the Application)
@@ -202,5 +219,18 @@ Ember.DefaultResolver = Ember.Object.extend({
     var className = classify(parsedName.name) + classify(parsedName.type),
         factory = get(parsedName.root, className);
     if (factory) { return factory; }
+  },
+
+  lookupDescription: function(name) {
+    var parsedName = this.parseName(name);
+
+    if (parsedName.type === 'template') {
+      return "template at " + parsedName.fullNameWithoutType.replace(/\./g, '/');
+    }
+
+    var description = parsedName.root + "." + classify(parsedName.name);
+    if (parsedName.type !== 'model') { description += classify(parsedName.type); }
+
+    return description;
   }
 });

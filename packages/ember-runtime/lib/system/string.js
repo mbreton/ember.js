@@ -56,9 +56,9 @@ Ember.String = {
     // first, replace any ORDERED replacements.
     var idx  = 0; // the current index for non-numerical replacements
     return str.replace(/%@([0-9]+)?/g, function(s, argIndex) {
-      argIndex = (argIndex) ? parseInt(argIndex,0) - 1 : idx++ ;
+      argIndex = (argIndex) ? parseInt(argIndex, 10) - 1 : idx++;
       s = formats[argIndex];
-      return ((s === null) ? '(null)' : (s === undefined) ? '' : s).toString();
+      return (s === null) ? '(null)' : (s === undefined) ? '' : Ember.inspect(s);
     }) ;
   },
 
@@ -239,8 +239,8 @@ Ember.String = {
     ```
 
     @method capitalize
-    @param {String} str
-    @return {String}
+    @param {String} str The string to capitalize.
+    @return {String} The capitalized string.
   */
   capitalize: function(str) {
     return str.charAt(0).toUpperCase() + str.substr(1);

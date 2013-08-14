@@ -67,13 +67,9 @@ function iter(key, value) {
 
   @class Enumerable
   @namespace Ember
-  @extends Ember.Mixin
   @since Ember 0.9
 */
 Ember.Enumerable = Ember.Mixin.create({
-
-  // compatibility
-  isEnumerable: true,
 
   /**
     Implement this method to make your class enumerable.
@@ -284,7 +280,7 @@ Ember.Enumerable = Ember.Mixin.create({
     @return {Array} The mapped array.
   */
   map: function(callback, target) {
-    var ret = Ember.A([]);
+    var ret = Ember.A();
     this.forEach(function(x, idx, i) {
       ret[idx] = callback.call(target, x, idx,i);
     });
@@ -334,7 +330,7 @@ Ember.Enumerable = Ember.Mixin.create({
     @return {Array} A filtered array.
   */
   filter: function(callback, target) {
-    var ret = Ember.A([]);
+    var ret = Ember.A();
     this.forEach(function(x, idx, i) {
       if (callback.call(target, x, idx, i)) ret.push(x);
     });
@@ -546,7 +542,7 @@ Ember.Enumerable = Ember.Mixin.create({
     @method some
     @param {Function} callback The callback to execute
     @param {Object} [target] The target object to use
-    @return {Array} A filtered array.
+    @return {Boolean} `true` if the passed function returns `true` for any item
   */
   some: function(callback, target) {
     return !!this.find(function(x, idx, i) {
@@ -561,7 +557,7 @@ Ember.Enumerable = Ember.Mixin.create({
     @method someProperty
     @param {String} key the property to test
     @param {String} [value] optional value to test against.
-    @return {Boolean} `true`
+    @return {Boolean} `true` if the passed function returns `true` for any item
   */
   someProperty: function(key, value) {
     return this.some(iter.apply(this, arguments));
@@ -623,7 +619,7 @@ Ember.Enumerable = Ember.Mixin.create({
     @return {Array} return values from calling invoke.
   */
   invoke: function(methodName) {
-    var args, ret = Ember.A([]);
+    var args, ret = Ember.A();
     if (arguments.length>1) args = a_slice.call(arguments, 1);
 
     this.forEach(function(x, idx) {
@@ -644,7 +640,7 @@ Ember.Enumerable = Ember.Mixin.create({
     @return {Array} the enumerable as an array.
   */
   toArray: function() {
-    var ret = Ember.A([]);
+    var ret = Ember.A();
     this.forEach(function(o, idx) { ret[idx] = o; });
     return ret ;
   },
@@ -680,7 +676,7 @@ Ember.Enumerable = Ember.Mixin.create({
   */
   without: function(value) {
     if (!this.contains(value)) return this; // nothing to do
-    var ret = Ember.A([]);
+    var ret = Ember.A();
     this.forEach(function(k) {
       if (k !== value) ret[ret.length] = k;
     }) ;
@@ -700,8 +696,8 @@ Ember.Enumerable = Ember.Mixin.create({
     @return {Ember.Enumerable}
   */
   uniq: function() {
-    var ret = Ember.A([]);
-    this.forEach(function(k){
+    var ret = Ember.A();
+    this.forEach(function(k) {
       if (a_indexOf(ret, k)<0) ret.push(k);
     });
     return ret;

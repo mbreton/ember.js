@@ -136,11 +136,14 @@ DeprecatedContainer.prototype = {
 
   In addition to creating your application's router, `Ember.Application` is
   also responsible for telling the router when to start routing. Transitions
-  between routes can be logged with the LOG_TRANSITIONS flag:
+  between routes can be logged with the LOG_TRANSITIONS flag, and more
+  detailed intra-transition logging can be logged with
+  the LOG_TRANSITIONS_INTERNAL flag:
 
   ```javascript
   window.App = Ember.Application.create({
-    LOG_TRANSITIONS: true
+    LOG_TRANSITIONS: true, // basic logging of successful transitions
+    LOG_TRANSITIONS_INTERNAL: true // detailed logging of all routing steps
   });
   ```
 
@@ -236,7 +239,7 @@ var Application = Ember.Application = Ember.Namespace.extend(Ember.DeferredMixin
 
     this.scheduleInitialize();
 
-    if ( Ember.LOG_VERSION ) {
+    if (Ember.LOG_VERSION) {
       Ember.LOG_VERSION = false; // we only need to see this once per Application#init
       Ember.debug('-------------------------------');
       Ember.debug('Ember.VERSION : ' + Ember.VERSION);
@@ -315,7 +318,7 @@ var Application = Ember.Application = Ember.Namespace.extend(Ember.DeferredMixin
     if (!this.$ || this.$.isReady) {
       Ember.run.schedule('actions', self, '_initialize');
     } else {
-      this.$().ready(function(){
+      this.$().ready(function() {
         Ember.run(self, '_initialize');
       });
     }
@@ -345,6 +348,7 @@ var Application = Ember.Application = Ember.Namespace.extend(Ember.DeferredMixin
     @method deferReadiness
   */
   deferReadiness: function() {
+    Ember.assert("You must call deferReadiness on an instance of Ember.Application", this instanceof Ember.Application);
     Ember.assert("You cannot defer readiness since the `ready()` hook has already been called.", this._readinessDeferrals > 0);
     this._readinessDeferrals++;
   },
@@ -354,6 +358,7 @@ var Application = Ember.Application = Ember.Namespace.extend(Ember.DeferredMixin
     @see {Ember.Application#deferReadiness}
   */
   advanceReadiness: function() {
+    Ember.assert("You must call advanceReadiness on an instance of Ember.Application", this instanceof Ember.Application);
     this._readinessDeferrals--;
 
     if (this._readinessDeferrals === 0) {
@@ -404,7 +409,7 @@ var Application = Ember.Application = Ember.Namespace.extend(Ember.DeferredMixin
     @param  property {String}
     @param  injectionName {String}
   **/
-  inject: function(){
+  inject: function() {
     var container = this.__container__;
     container.injection.apply(container, arguments);
   },
@@ -420,7 +425,7 @@ var Application = Ember.Application = Ember.Namespace.extend(Ember.DeferredMixin
 
     @method initialize
    **/
-  initialize: function(){
+  initialize: function() {
     Ember.deprecate('Calling initialize manually is not supported. Please see Ember.Application#advanceReadiness and Ember.Application#deferReadiness');
   },
   /**
@@ -466,7 +471,7 @@ var Application = Ember.Application = Ember.Namespace.extend(Ember.DeferredMixin
 
     var App;
 
-    Ember.run(function(){
+    Ember.run(function() {
       App = Ember.Application.create();
     });
 
@@ -476,11 +481,11 @@ var Application = Ember.Application = Ember.Namespace.extend(Ember.DeferredMixin
       }
     });
 
-    test("first test", function(){
+    test("first test", function() {
       // App is freshly reset
     });
 
-    test("first test", function(){
+    test("first test", function() {
       // App is again freshly reset
     });
     ```
@@ -495,7 +500,7 @@ var Application = Ember.Application = Ember.Namespace.extend(Ember.DeferredMixin
 
     var App;
 
-    Ember.run(function(){
+    Ember.run(function() {
       App = Ember.Application.create();
     });
 
@@ -508,10 +513,10 @@ var Application = Ember.Application = Ember.Namespace.extend(Ember.DeferredMixin
       }
     });
 
-    test("first test", function(){
+    test("first test", function() {
       ok(true, 'something before app is initialized');
 
-      Ember.run(function(){
+      Ember.run(function() {
         App.advanceReadiness();
       });
       ok(true, 'something after app is initialized');
@@ -531,9 +536,8 @@ var Application = Ember.Application = Ember.Namespace.extend(Ember.DeferredMixin
 
       this.buildContainer();
 
-      Ember.run.schedule('actions', this, function(){
+      Ember.run.schedule('actions', this, function() {
         this._initialize();
-        this.startRouting();
       });
     }
 
@@ -694,6 +698,8 @@ Ember.Application.reopenClass({
     container.set = Ember.set;
     container.normalize = normalize;
     container.resolver = resolverFor(namespace);
+    container.describe = container.resolver.describe;
+    container.optionsForType('component', { singleton: false });
     container.optionsForType('view', { singleton: false });
     container.optionsForType('template', { instantiate: false });
     container.register('application:main', namespace, { instantiate: false });
@@ -737,9 +743,16 @@ function resolverFor(namespace) {
   var resolver = resolverClass.create({
     namespace: namespace
   });
-  return function(fullName) {
+
+  function resolve(fullName) {
     return resolver.resolve(fullName);
+  }
+
+  resolve.describe = function(fullName) {
+    return resolver.lookupDescription(fullName);
   };
+
+  return resolve;
 }
 
 function normalize(fullName) {

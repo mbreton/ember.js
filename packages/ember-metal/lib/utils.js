@@ -435,9 +435,9 @@ var needsFinallyFix = (function() {
   @for Ember
   @param {Function} tryable The function to run the try callback
   @param {Function} finalizer The function to run the finally callback
-  @param [binding]
+  @param {Object} [binding] The optional calling object. Defaults to 'this'
   @return {*} The return value is the that of the finalizer,
-  unless that valueis undefined, in which case it is the return value
+  unless that value is undefined, in which case it is the return value
   of the tryable
 */
 
@@ -452,7 +452,7 @@ if (needsFinallyFix) {
     } finally {
       try {
         finalResult = finalizer.call(binding);
-      } catch (e){
+      } catch (e) {
         finalError = e;
       }
     }
@@ -486,7 +486,7 @@ if (needsFinallyFix) {
   @param {Function} tryable The function to run the try callback
   @param {Function} catchable The function to run the catchable callback
   @param {Function} finalizer The function to run the finally callback
-  @param [binding]
+  @param {Object} [binding] The optional calling object. Defaults to 'this'
   @return {*} The return value is the that of the finalizer,
   unless that value is undefined, in which case it is the return value
   of the tryable.
@@ -504,7 +504,7 @@ if (needsFinallyFix) {
     } finally {
       try {
         finalResult = finalizer.call(binding);
-      } catch (e){
+      } catch (e) {
         finalError = e;
       }
     }

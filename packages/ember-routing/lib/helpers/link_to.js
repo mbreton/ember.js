@@ -27,38 +27,96 @@ Ember.onLoad('Ember.Handlebars', function(Handlebars) {
     return resolveParams(options.context, options.params, { types: types, data: data });
   }
 
-  function args(linkView, router, route) {
-    var passedRouteName = route || linkView.namedRoute, routeName;
-
-    routeName = fullRouteName(router, passedRouteName);
-
-    Ember.assert(fmt("The attempt to linkTo route '%@' failed. The router did not find '%@' in its possible routes: '%@'", [passedRouteName, passedRouteName, Ember.keys(router.router.recognizer.names).join("', '")]), router.hasRoute(routeName));
-
-    var ret = [ routeName ];
-    return ret.concat(resolvedPaths(linkView.parameters));
+  function createPath(path) {
+    var fullPath = 'paramsContext';
+    if (path !== '') {
+      fullPath += '.' + path;
+    }
+    return fullPath;
   }
 
   /**
+    `Ember.LinkView` renders an element whose `click` event triggers a
+    transition of the application's instance of `Ember.Router` to
+    a supplied route by name.
+
+    Instances of `LinkView` will most likely be created through
+    the `linkTo` Handlebars helper, but properties of this class
+    can be overridden to customize application-wide behavior.
+
     @class LinkView
     @namespace Ember
     @extends Ember.View
+    @see {Handlebars.helpers.linkTo}
   **/
   var LinkView = Ember.LinkView = Ember.View.extend({
     tagName: 'a',
     namedRoute: null,
     currentWhen: null,
+
+    /**
+      Sets the `title` attribute of the `LinkView`'s HTML element.
+
+      @property title
+      @default null
+    **/
     title: null,
+
+    /**
+      Sets the `rel` attribute of the `LinkView`'s HTML element.
+
+      @property rel
+      @default null
+    **/
+    rel: null,
+
+    /**
+      The CSS class to apply to `LinkView`'s element when its `active`
+      property is `true`.
+
+      @property activeClass
+      @type String
+      @default active
+    **/
     activeClass: 'active',
+
+    /**
+      The CSS class to apply to `LinkView`'s element when its `loading`
+      property is `true`.
+
+      @property loadingClass
+      @type String
+      @default loading
+    **/
+    loadingClass: 'loading',
+
+    /**
+      The CSS class to apply to a `LinkView`'s element when its `disabled`
+      property is `true`.
+
+      @property disabledClass
+      @type String
+      @default disabled
+    **/
     disabledClass: 'disabled',
     _isDisabled: false,
+
+    /**
+      Determines whether the `LinkView` will trigger routing via
+      the `replaceWith` routing strategy.
+
+      @property replace
+      @type Boolean
+      @default false
+    **/
     replace: false,
-    attributeBindings: ['href', 'title'],
-    classNameBindings: ['active', 'disabled'],
+    attributeBindings: ['href', 'title', 'rel'],
+    classNameBindings: ['active', 'loading', 'disabled'],
 
     /**
       By default the `{{linkTo}}` helper responds to the `click` event. You
       can override this globally by setting this property to your custom
-      event name. 
+      event name.
 
       This is particularly useful on mobile when one wants to avoid the 300ms
       click delay using some sort of custom `tap` event.
@@ -69,34 +127,107 @@ Ember.onLoad('Ember.Handlebars', function(Handlebars) {
     */
     eventName: 'click',
 
+    // this is doc'ed here so it shows up in the events
+    // section of the API documentation, which is where
+    // people will likely go looking for it.
+    /**
+      Triggers the `LinkView`'s routing behavior. If
+      `eventName` is changed to a value other than `click`
+      the routing behavior will trigger on that custom event
+      instead.
+
+      @event click
+    **/
+
     init: function() {
-      this._super();
+      this._super.apply(this, arguments);
+
       // Map desired event name to invoke function
       var eventName = get(this, 'eventName');
       this.on(eventName, this, this._invoke);
+
+      var params = this.parameters.params,
+          length = params.length,
+          context = this.parameters.context,
+          self = this,
+          path, paths = Ember.A([]), i;
+
+      set(this, 'paramsContext', context);
+
+      for(i=0; i < length; i++) {
+        paths.pushObject(createPath(params[i]));
+      }
+
+      var observer = function(object, path) {
+        this.notifyPropertyChange('routeArgs');
+      };
+
+      for(i=0; i < length; i++) {
+        this.registerObserver(this, paths[i], this, observer);
+      }
     },
 
-    // Even though this isn't a virtual view, we want to treat it as if it is
-    // so that you can access the parent with {{view.prop}}
+    /**
+      @private
+
+      Even though this isn't a virtual view, we want to treat it as if it is
+      so that you can access the parent with {{view.prop}}
+
+      @method concreteView
+    **/
     concreteView: Ember.computed(function() {
       return get(this, 'parentView');
     }).property('parentView'),
 
+    /**
+
+      Accessed as a classname binding to apply the `LinkView`'s `disabledClass`
+      CSS `class` to the element when the link is disabled.
+
+      When `true` interactions with the element will not trigger route changes.
+      @property disabled
+    */
     disabled: Ember.computed(function(key, value) {
       if (value !== undefined) { this.set('_isDisabled', value); }
-      
+
       return value ? this.get('disabledClass') : false;
     }),
 
+    /**
+      Accessed as a classname binding to apply the `LinkView`'s `activeClass`
+      CSS `class` to the element when the link is active.
+
+      A `LinkView` is considered active when its `currentWhen` property is `true`
+      or the application's current route is the route the `LinkView` would trigger
+      transitions into.
+
+      @property active
+    **/
     active: Ember.computed(function() {
-      var router = this.get('router'),
+      var router = get(this, 'router'),
           params = resolvedPaths(this.parameters),
-          currentWithIndex = this.currentWhen + '.index',
-          isActive = router.isActive.apply(router, [this.currentWhen].concat(params)) ||
+          currentWhen = this.currentWhen || get(this, 'namedRoute'),
+          currentWithIndex = currentWhen + '.index',
+          isActive = router.isActive.apply(router, [currentWhen].concat(params)) ||
                      router.isActive.apply(router, [currentWithIndex].concat(params));
 
       if (isActive) { return get(this, 'activeClass'); }
     }).property('namedRoute', 'router.url'),
+
+    loading: Ember.computed(function() {
+      if (!get(this, 'routeArgs')) { return get(this, 'loadingClass'); }
+    }).property('routeArgs'),
+
+    /**
+      Accessed as a classname binding to apply the `LinkView`'s `activeClass`
+      CSS `class` to the element when the link is active.
+
+      A `LinkView` is considered active when its `currentWhen` property is `true`
+      or the application's current route is the route the `LinkView` would trigger
+      transitions into.
+
+      @property active
+    **/
 
     router: Ember.computed(function() {
       return this.get('controller').container.lookup('router:main');
@@ -115,35 +246,76 @@ Ember.onLoad('Ember.Handlebars', function(Handlebars) {
 
       event.preventDefault();
       if (this.bubbles === false) { event.stopPropagation(); }
-      
+
       if (get(this, '_isDisabled')) { return false; }
 
-      var router = this.get('router');
+      if (get(this, 'loading')) {
+        Ember.Logger.warn("This linkTo is in an inactive loading state because at least one of its parameters' presently has a null/undefined value, or the provided route name is invalid.");
+        return false;
+      }
 
-      if (Ember.ENV.ENABLE_ROUTE_TO) {
+      var router = get(this, 'router'),
+          routeArgs = get(this, 'routeArgs');
 
-        var routeArgs = args(this, router);
-
-        router.routeTo(Ember.TransitionEvent.create({
-          transitionMethod: this.get('replace') ? 'replaceWith' : 'transitionTo',
-          destinationRouteName: routeArgs[0],
-          contexts: routeArgs.slice(1)
-        }));
+      if (this.get('replace')) {
+        router.replaceWith.apply(router, routeArgs);
       } else {
-        if (this.get('replace')) {
-          router.replaceWith.apply(router, args(this, router));
-        } else {
-          router.transitionTo.apply(router, args(this, router));
-        }
+        router.transitionTo.apply(router, routeArgs);
       }
     },
 
+    routeArgs: Ember.computed(function() {
+
+      var router = get(this, 'router'),
+          namedRoute = get(this, 'namedRoute'), routeName;
+
+      if (!namedRoute && this.namedRouteBinding) {
+        // The present value of namedRoute is falsy, but since it's a binding
+        // and could be valid later, don't treat as error.
+        return;
+      }
+      namedRoute = fullRouteName(router, namedRoute);
+
+      Ember.assert(fmt("The attempt to linkTo route '%@' failed. The router did not find '%@' in its possible routes: '%@'", [namedRoute, namedRoute, Ember.keys(router.router.recognizer.names).join("', '")]), router.hasRoute(namedRoute));
+
+      var resolvedContexts = resolvedPaths(this.parameters), paramsPresent = true;
+      for (var i = 0, l = resolvedContexts.length; i < l; ++i) {
+        var context = resolvedContexts[i];
+
+        // If contexts aren't present, consider the linkView unloaded.
+        if (context === null || typeof context === 'undefined') { return; }
+      }
+
+      return [ namedRoute ].concat(resolvedContexts);
+    }).property('namedRoute'),
+
+    /**
+      Sets the element's `href` attribute to the url for
+      the `LinkView`'s targeted route.
+
+      If the `LinkView`'s `tagName` is changed to a value other
+      than `a`, this property will be ignored.
+
+      @property href
+    **/
     href: Ember.computed(function() {
       if (this.get('tagName') !== 'a') { return false; }
 
-      var router = this.get('router');
-      return router.generate.apply(router, args(this, router));
-    })
+      var router = get(this, 'router'),
+          routeArgs = get(this, 'routeArgs');
+
+      return routeArgs ? router.generate.apply(router, routeArgs) : get(this, 'loadingHref');
+    }).property('routeArgs'),
+
+    /**
+      The default href value to use while a linkTo is loading.
+      Only applies when tagName is 'a'
+
+      @property loadingHref
+      @type String
+      @default #
+    */
+    loadingHref: '#'
   });
 
   LinkView.toString = function() { return "LinkView"; };
@@ -156,7 +328,7 @@ Ember.onLoad('Ember.Handlebars', function(Handlebars) {
     element:
 
     ```handlebars
-    {{#linkTo photoGallery}}
+    {{#linkTo 'photoGallery'}}
       Great Hamster Photos
     {{/linkTo}}
     ```
@@ -173,7 +345,7 @@ Ember.onLoad('Ember.Handlebars', function(Handlebars) {
     a `tagName` option:
 
     ```handlebars
-    {{#linkTo photoGallery tagName="li"}}
+    {{#linkTo 'photoGallery' tagName="li"}}
       Great Hamster Photos
     {{/linkTo}}
     ```
@@ -184,7 +356,7 @@ Ember.onLoad('Ember.Handlebars', function(Handlebars) {
     </li>
     ```
 
-    To override this option for your entire application, see 
+    To override this option for your entire application, see
     "Overriding Application-wide Defaults".
 
     ### Handling `href`
@@ -202,7 +374,7 @@ Ember.onLoad('Ember.Handlebars', function(Handlebars) {
     use of `{{linkTo}}`:
 
     ```handlebars
-    {{#linkTo photoGallery.recent}}
+    {{#linkTo 'photoGallery.recent'}}
       Great Hamster Photos from the last week
     {{/linkTo}}
     ```
@@ -220,7 +392,7 @@ Ember.onLoad('Ember.Handlebars', function(Handlebars) {
     option:
 
     ```handlebars
-    {{#linkTo photoGallery.recent activeClass="current-url"}}
+    {{#linkTo 'photoGallery.recent' activeClass="current-url"}}
       Great Hamster Photos from the last week
     {{/linkTo}}
     ```
@@ -231,7 +403,7 @@ Ember.onLoad('Ember.Handlebars', function(Handlebars) {
     </a>
     ```
 
-    To override this option for your entire application, see 
+    To override this option for your entire application, see
     "Overriding Application-wide Defaults".
 
     ### Supplying a model
@@ -240,13 +412,13 @@ Ember.onLoad('Ember.Handlebars', function(Handlebars) {
     the model context of the linked route:
 
     ```javascript
-    App.Router.map(function(){
+    App.Router.map(function() {
       this.resource("photoGallery", {path: "hamster-photos/:photo_id"});
     })
     ```
 
     ```handlebars
-    {{#linkTo photoGallery aPhoto}}
+    {{#linkTo 'photoGallery' aPhoto}}
       {{aPhoto.title}}
     {{/linkTo}}
     ```
@@ -265,8 +437,8 @@ Ember.onLoad('Ember.Handlebars', function(Handlebars) {
     route with the dynamic segments:
 
     ```javascript
-    App.Router.map(function(){
-      this.resource("photoGallery", {path: "hamster-photos/:photo_id"}, function(){
+    App.Router.map(function() {
+      this.resource("photoGallery", {path: "hamster-photos/:photo_id"}, function() {
         this.route("comment", {path: "comments/:comment_id"});
       });
     });
@@ -274,7 +446,7 @@ Ember.onLoad('Ember.Handlebars', function(Handlebars) {
     This argument will become the model context of the linked route:
 
     ```handlebars
-    {{#linkTo photoGallery.comment aPhoto comment}}
+    {{#linkTo 'photoGallery.comment' aPhoto comment}}
       {{comment.body}}
     {{/linkTo}}
     ```
@@ -314,13 +486,22 @@ Ember.onLoad('Ember.Handlebars', function(Handlebars) {
     @return {String} HTML string
   */
   Ember.Handlebars.registerHelper('linkTo', function(name) {
-    var options = [].slice.call(arguments, -1)[0];
-    var params = [].slice.call(arguments, 1, -1);
+    var options = [].slice.call(arguments, -1)[0],
+        params = [].slice.call(arguments, 1, -1);
 
     var hash = options.hash;
 
-    hash.namedRoute = name;
-    hash.currentWhen = hash.currentWhen || name;
+    if (options.types[0] === "ID") {
+      if (Ember.ENV.HELPER_PARAM_LOOKUPS) {
+        hash.namedRouteBinding = name;
+      } else {
+        Ember.deprecate("You provided a quoteless destination route parameter of " + name + " to the linkTo helper. Soon, this will perform a property lookup, rather than be treated as a string. To get rid of this warning, wrap " + name + " in quotes. To opt in to this new behavior, set ENV.HELPER_PARAM_LOOKUPS = true");
+        hash.namedRoute = name;
+      }
+    } else {
+      hash.namedRoute = name;
+    }
+
     hash.disabledBinding = hash.disabledWhen;
 
     hash.parameters = {
@@ -331,6 +512,6 @@ Ember.onLoad('Ember.Handlebars', function(Handlebars) {
 
     return Ember.Handlebars.helpers.view.call(this, LinkView, options);
   });
-
 });
+
 

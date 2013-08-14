@@ -132,7 +132,7 @@ Ember.Handlebars.registerHelper('helperMissing', function(path, options) {
   var error, view = "";
 
   error = "%@ Handlebars error: Could not find property '%@' on object %@.";
-  if (options.data){
+  if (options.data) {
     view = options.data.view;
   }
   throw new Ember.Error(Ember.String.fmt(error, [view, path, this]));
@@ -169,7 +169,7 @@ Ember.Handlebars.registerHelper('helperMissing', function(path, options) {
   Ember.Handlebars.registerBoundHelper('repeat', function(value, options) {
     var count = options.hash.count;
     var a = [];
-    while(a.length < count){
+    while(a.length < count) {
         a.push(value);
     }
     return a.join('');
@@ -213,7 +213,7 @@ Ember.Handlebars.registerHelper('helperMissing', function(path, options) {
 
   ```javascript
   Ember.Handlebars.registerBoundHelper('concatenate', function() {
-    var values = arguments[arguments.length - 1];
+    var values = Array.prototype.slice.call(arguments, 0, -1);
     return values.join('||');
   });
   ```
@@ -260,7 +260,7 @@ Ember.Handlebars.registerBoundHelper = function(name, fn) {
       view = data.view,
       currentContext = (options.contexts && options.contexts[0]) || this,
       normalized,
-      pathRoot, path,
+      pathRoot, path, prefixPathForDependentKeys = '',
       loc, hashOption;
 
     Ember.assert("registerBoundHelper-generated helpers do not support use with Handlebars blocks.", !options.fn);
@@ -311,8 +311,11 @@ Ember.Handlebars.registerBoundHelper = function(name, fn) {
 
     view.registerObserver(pathRoot, path, bindView, bindView.rerender);
 
+    if(!Ember.isEmpty(path)) {
+      prefixPathForDependentKeys = path + '.';
+    }
     for (var i=0, l=dependentKeys.length; i<l; i++) {
-      view.registerObserver(pathRoot, path + '.' + dependentKeys[i], bindView, bindView.rerender);
+      view.registerObserver(pathRoot, prefixPathForDependentKeys + dependentKeys[i], bindView, bindView.rerender);
     }
   }
 
@@ -365,7 +368,7 @@ function evaluateMultiPropertyBoundHelper(context, fn, normalizedProperties, opt
 
   view.appendChild(bindView);
 
-  // Assemble liast of watched properties that'll re-render this helper.
+  // Assemble list of watched properties that'll re-render this helper.
   watchedProperties = [];
   for (boundOption in boundOptions) {
     if (boundOptions.hasOwnProperty(boundOption)) {
@@ -419,7 +422,7 @@ function evaluateUnboundHelper(context, fn, normalizedProperties, options) {
   @for Ember.Handlebars
   @param {String} template spec
 */
-Ember.Handlebars.template = function(spec){
+Ember.Handlebars.template = function(spec) {
   var t = Handlebars.template(spec);
   t.isTop = true;
   return t;

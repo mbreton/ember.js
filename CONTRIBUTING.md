@@ -24,7 +24,7 @@ this bug already.
 3. Provide JSFiddle or JSBin demo that specifically shows the problem. This
 demo should be fully operational with the exception of the bug you want to
 demonstrate. The more pared down, the better.
-Preconfigured starting points for the latest Ember: [JSFiddle](http://jsfiddle.net/DCrHG/) | [JSBin](http://jsbin.com/ucanam/54/edit) (may not work with older IE versions due to MIME type isses).
+Preconfigured starting points for the latest Ember: [JSFiddle](http://jsfiddle.net/NQKvy/) | [JSBin](http://jsbin.com/ucanam/239/edit) (may not work with older IE versions due to MIME type isses).
 Issues with fiddles are prioritized.
 
 4. Your issue will be verified. The provided fiddle will be tested for
@@ -61,8 +61,16 @@ then that will speed the process along.
 
 # Building Ember.js
 
-The stack needed to build Ember.js can be quite complex to set up for new
-developers. A VagrantFile is here to ease things for newcomers.
+With a relatively new ruby ( > 1.9.x) installed, building ember is quite simple.
+
+```sh
+cd ember.js
+bundle install
+rake dist
+rake test
+```
+
+For those having issues with some of the build tool dependencies, an optional VagrantFile is provided.
 
 Using Vagrant to build latest version of Ember.js is quite simple. Just
 follow these 4 steps:
