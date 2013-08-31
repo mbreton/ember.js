@@ -4,6 +4,7 @@
 */
 
 var get = Ember.get, set = Ember.set,
+    getProperties = Ember.getProperties,
     classify = Ember.String.classify,
     fmt = Ember.String.fmt,
     a_forEach = Ember.EnumerableUtils.forEach,
@@ -17,7 +18,7 @@ var get = Ember.get, set = Ember.set,
   @namespace Ember
   @extends Ember.Object
 */
-Ember.Route = Ember.Object.extend({
+Ember.Route = Ember.Object.extend(Ember.ActionHandler, {
   /**
     @private
 
@@ -44,16 +45,16 @@ Ember.Route = Ember.Object.extend({
     These functions will be invoked when a matching `{{action}}` is triggered
     from within a template and the application's current route is this route.
 
-    Events can also be invoked from other parts of your application via `Route#send`
+    Actions can also be invoked from other parts of your application via `Route#send`
     or `Controller#send`.
 
-    The `events` hash will inherit event handlers from
-    the `events` hash defined on extended Route parent classes
+    The `actions` hash will inherit action handlers from
+    the `actions` hash defined on extended Route parent classes
     or mixins rather than just replace the entire hash, e.g.:
 
     ```js
     App.CanDisplayBanner = Ember.Mixin.create({
-      events: {
+      actions: {
         displayBanner: function(msg) {
           // ...
         }
@@ -61,7 +62,7 @@ Ember.Route = Ember.Object.extend({
     });
 
     App.WelcomeRoute = Ember.Route.extend(App.CanDisplayBanner, {
-      events: {
+      actions: {
         playMusic: function() {
           // ...
         }
@@ -69,36 +70,36 @@ Ember.Route = Ember.Object.extend({
     });
 
     // `WelcomeRoute`, when active, will be able to respond
-    // to both events, since the events hash is merged rather
+    // to both actions, since the actions hash is merged rather
     // then replaced when extending mixins / parent classes.
     this.send('displayBanner');
     this.send('playMusic');
     ```
 
     It is also possible to call `this._super()` from within an
-    event handler if it overrides a handle defined on a parent
+    action handler if it overrides a handle defined on a parent
     class or mixin.
 
-    Within a route's event handler, the value of the `this` context
+    Within a route's action handler, the value of the `this` context
     is the Route object.
 
     ## Bubbling
 
-    By default, an event will stop bubbling once a handler defined
-    on the `events` hash handles it. To continue bubbling the event,
+    By default, an action will stop bubbling once a handler defined
+    on the `actions` hash handles it. To continue bubbling the action,
     you must return `true` from the handler.
 
-    ## Built-in events
+    ## Built-in actions
 
-    There are a few built-in events pertaining to transitions that you
+    There are a few built-in actions pertaining to transitions that you
     can use to customize transition behavior: `willTransition` and
     `error`.
 
     ### `willTransition`
 
-    The `willTransition` event is fired at the beginning of any
+    The `willTransition` action is fired at the beginning of any
     attempted transition with a `Transition` object as the sole
-    argument. This event can be used for aborting, redirecting,
+    argument. This action can be used for aborting, redirecting,
     or decorating the transition from the currently active routes.
 
     A good example is preventing navigation when a form is
@@ -106,7 +107,7 @@ Ember.Route = Ember.Object.extend({
 
     ```js
     App.ContactFormRoute = Ember.Route.extend({
-      events: {
+      actions: {
         willTransition: function(transition) {
           if (this.controller.get('userHasEnteredData')) {
             this.controller.displayNavigationConfirm();
@@ -122,7 +123,7 @@ Ember.Route = Ember.Object.extend({
     Note that `willTransition` will not be fired for the
     redirecting `transitionTo`, since `willTransition` doesn't
     fire when there is already a transition underway. If you want
-    subsequent `willTransition` events to fire for the redirecting
+    subsequent `willTransition` actions to fire for the redirecting
     transition, you must first explicitly call
     `transition.abort()`.
 
@@ -130,7 +131,7 @@ Ember.Route = Ember.Object.extend({
 
     When attempting to transition into a route, any of the hooks
     may throw an error, or return a promise that rejects, at which
-    point an `error` event will be fired on the partially-entered
+    point an `error` action will be fired on the partially-entered
     routes, allowing for per-route error handling logic, or shared
     error handling logic defined on a parent route.
 
@@ -147,7 +148,7 @@ Ember.Route = Ember.Object.extend({
         return Ember.RSVP.reject("bad things!");
       },
 
-      events: {
+      actions: {
         error: function(error, transition) {
           // Assuming we got here due to the error in `beforeModel`,
           // we can expect that error === "bad things!",
@@ -165,14 +166,14 @@ Ember.Route = Ember.Object.extend({
     });
     ```
 
-    `error` events that bubble up all the way to `ApplicationRoute`
+    `error` actions that bubble up all the way to `ApplicationRoute`
     will fire a default error handler that logs the error. You can
     specify your own global default error handler by overriding the
     `error` handler on `ApplicationRoute`:
 
     ```js
     App.ApplicationRoute = Ember.Route.extend({
-      events: {
+      actions: {
         error: function(error, transition) {
           this.controllerFor('banner').displayError(error.message);
         }
@@ -183,9 +184,16 @@ Ember.Route = Ember.Object.extend({
     @see {Ember.Route#send}
     @see {Handlebars.helpers.action}
 
-    @property events
+    @property actions
     @type Hash
     @default null
+  */
+  actions: null,
+
+  /**
+    @deprecated
+
+    Please use `actions` instead.
   */
   events: null,
 
@@ -212,9 +220,30 @@ Ember.Route = Ember.Object.extend({
     route in question. The model will be serialized into the URL
     using the `serialize` hook.
 
+    Example
+
+    ```javascript
+    App.Router.map(function() {
+      this.route("index");
+      this.route("secret");
+      this.route("fourOhFour", { path: "*:"});
+    });
+
+    App.IndexRoute = Ember.Route.extend({
+      actions: {
+        moveToSecret: function(context){
+          if (authorized()){
+            this.transitionTo('secret', context);
+          }
+            this.transitionTo('fourOhFour');
+        }
+      }
+    });
+    ```
+
     @method transitionTo
     @param {String} name the name of the route
-    @param {...Object} models the
+    @param {...Object} models
   */
   transitionTo: function(name, context) {
     var router = this.router;
@@ -225,18 +254,66 @@ Ember.Route = Ember.Object.extend({
     Transition into another route while replacing the current URL if
     possible. Identical to `transitionTo` in all other respects.
 
-    Of the bundled location types, only `history` currently supports
-    this behavior.
+    Example
+
+    ```javascript
+    App.Router.map(function() {
+      this.route("index");
+      this.route("secret");
+    });
+
+    App.SecretRoute = Ember.Route.extend({
+      afterModel: function() {
+        if (!authorized()){
+          this.replaceWith('index');
+        }
+      }
+    });
+    ```
 
     @method replaceWith
     @param {String} name the name of the route
-    @param {...Object} models the
+    @param {...Object} models
   */
   replaceWith: function() {
     var router = this.router;
     return this.router.replaceWith.apply(this.router, arguments);
   },
 
+  /**
+    Sends an action to the router, which will delegate it to the currently
+    active route hierarchy per the bubbling rules explained under `actions`.
+
+    Example
+
+    ```javascript
+    App.Router.map(function() {
+      this.route("index");
+    });
+
+    App.ApplicationRoute = Ember.Route.extend({
+      actions: {
+        track: function(arg) {
+          console.log(arg, 'was clicked');
+        }
+      }
+    });
+
+    App.IndexRoute = Ember.Route.extend({
+      actions: {
+        trackIfDebug: function(arg) {
+          if (debug) {
+            this.send('track', arg);
+          }
+        }
+      }
+    });
+    ```
+
+    @method send
+    @param {String} name the name of the action to trigger
+    @param {...*} args
+  */
   send: function() {
     return this.router.send.apply(this.router, arguments);
   },
@@ -256,7 +333,7 @@ Ember.Route = Ember.Object.extend({
     }
 
     // Assign the route's controller so that it can more easily be
-    // referenced in event handlers
+    // referenced in action handlers
     this.controller = controller;
 
     if (this.setupControllers) {
@@ -446,6 +523,16 @@ Ember.Route = Ember.Object.extend({
     if a promise returned from `model` fails, the error will be
     handled by the `error` hook on `Ember.Route`.
 
+    Example
+
+    ```js
+    App.PostRoute = Ember.Route.extend({
+      model: function(params) {
+        return App.Post.find(params.post_id);
+      }
+    });
+    ```
+
     @method model
     @param {Object} params the parameters extracted from the URL
     @param {Transition} transition
@@ -471,7 +558,7 @@ Ember.Route = Ember.Object.extend({
     var modelClass = this.container.lookupFactory('model:' + name);
     var namespace = get(this, 'router.namespace');
 
-    Ember.assert("You used the dynamic segment " + name + "_id in your router, but " + namespace + "." + classify(name) + " did not exist and you did not override your route's `model` hook.", modelClass);
+    Ember.assert("You used the dynamic segment " + name + "_id in your route, but " + namespace + "." + classify(name) + " did not exist and you did not override your route's `model` hook.", modelClass);
     return modelClass.find(value);
   },
 
@@ -497,8 +584,10 @@ Ember.Route = Ember.Object.extend({
     });
     ```
 
-    The default `serialize` method inserts the model's `id` into the
-    route's dynamic segment (in this case, `:post_id`).
+    The default `serialize` method will insert the model's `id` into the
+    route's dynamic segment (in this case, `:post_id`) if the segment contains '_id'.
+    If the route has multiple dynamic segments or does not contain '_id', `serialize`
+    will return `Ember.getProperties(model, params)`
 
     This method is called when `transitionTo` is called with a context
     in order to populate the URL.
@@ -510,14 +599,14 @@ Ember.Route = Ember.Object.extend({
     @return {Object} the serialized parameters
   */
   serialize: function(model, params) {
-    if (params.length !== 1) { return; }
+    if (params.length < 1) { return; }
 
     var name = params[0], object = {};
 
-    if (/_id$/.test(name)) {
-      object[name] = get(model, 'id');
+    if (/_id$/.test(name) && params.length === 1) {
+      object[name] = get(model, "id");
     } else {
-      object[name] = model;
+      object = getProperties(model, params);
     }
 
     return object;
@@ -557,7 +646,18 @@ Ember.Route = Ember.Object.extend({
     be used if it is defined. If it is not defined, an `Ember.ObjectController`
     instance would be used.
 
+    Example
+    ```js
+    App.PostRoute = Ember.Route.extend({
+      setupController: function(controller, model) {
+        controller.set('model', model);
+      }
+    });
+    ```
+
     @method setupController
+    @param {Controller} controller instance
+    @param {Object} model
   */
   setupController: function(controller, context) {
     if (controller && (context !== undefined)) {
@@ -609,6 +709,17 @@ Ember.Route = Ember.Object.extend({
     If the optional model is passed then the controller type is determined automatically,
     e.g., an ArrayController for arrays.
 
+    Example
+
+    ```js
+    App.PostRoute = Ember.Route.extend({
+      setupController: function(controller, post) {
+        this._super(controller, post);
+        this.generateController('posts', post);
+      }
+    });
+    ```
+
     @method generateController
     @param {String} name the name of the controller
     @param {Object} model the model to infer the type of the controller (optional)
@@ -626,6 +737,22 @@ Ember.Route = Ember.Object.extend({
 
     This is the object returned by the `model` hook of the route
     in question.
+
+    Example
+
+    ```js
+    App.Router.map(function() {
+        this.resource('post', { path: '/post/:post_id' }, function() {
+            this.resource('comments');
+        });
+    });
+
+    App.CommentsRoute = Ember.Route.extend({
+        afterModel: function() {
+            this.set('post', this.modelFor('post'));
+        }
+    });
+    ```
 
     @method modelFor
     @param {String} name the name of the route
@@ -657,6 +784,22 @@ Ember.Route = Ember.Object.extend({
 
     This method can be overridden to set up and render additional or
     alternative templates.
+
+    ```js
+    App.PostsRoute = Ember.Route.extend({
+      renderTemplate: function(controller, model) {
+        var favController = this.controllerFor('favoritePost');
+
+        // Render the `favoritePost` template into
+        // the outlet `posts`, and display the `favoritePost`
+        // controller.
+        this.render('favoritePost', {
+          outlet: 'posts',
+          controller: favController
+        });
+      }
+    });
+    ```
 
     @method renderTemplate
     @param {Object} controller the route's controller
@@ -728,10 +871,12 @@ Ember.Route = Ember.Object.extend({
     }
 
     name = name ? name.replace(/\//g, '.') : this.routeName;
+    var viewName = this.viewName || name;
+    var templateName = this.templateName || name;
 
     var container = this.container,
-        view = container.lookup('view:' + name),
-        template = container.lookup('template:' + name);
+        view = container.lookup('view:' + viewName),
+        template = container.lookup('template:' + templateName);
 
     if (!view && !template) {
       Ember.assert("Could not find \"" + name + "\" template or view.", !namePassed);
@@ -762,7 +907,7 @@ Ember.Route = Ember.Object.extend({
 
     ```js
     App.ApplicationRoute = App.Route.extend({
-      events: {
+      actions: {
         showModal: function(evt) {
           this.render(evt.modalName, {
             outlet: 'modal',
@@ -795,6 +940,11 @@ Ember.Route = Ember.Object.extend({
     this.teardownViews();
   },
 
+  /**
+    @private
+
+    @method teardownViews
+  */
   teardownViews: function() {
     // Tear down the top level view
     if (this.teardownTopLevelView) { this.teardownTopLevelView(); }
@@ -854,7 +1004,7 @@ function normalizeOptions(route, name, template, options) {
   } else if (namedController = route.container.lookup('controller:' + name)) {
     controller = namedController;
   } else {
-    controller = route.routeName;
+    controller = route.controllerName || route.routeName;
   }
 
   if (typeof controller === 'string') {

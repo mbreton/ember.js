@@ -17,11 +17,12 @@ test("default model utilizes the container to acquire the model factory", functi
 
   post = {};
 
-  Post = {
+  Post = Ember.Object.extend();
+  Post.reopenClass({
     find: function(id) {
       return post;
     }
-  };
+  });
 
   container = {
     lookupFactory: lookupFactory

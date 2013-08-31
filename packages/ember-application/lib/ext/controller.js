@@ -4,30 +4,14 @@
 */
 
 var get = Ember.get, set = Ember.set;
-var ControllersProxy = Ember.Object.extend({
-  controller: null,
-
-  unknownProperty: function(controllerName) {
-    var controller = get(this, 'controller'),
-      needs = get(controller, 'needs'),
-      container = controller.get('container'),
-      dependency;
-
-    for (var i=0, l=needs.length; i<l; i++) {
-      dependency = needs[i];
-      if (dependency === controllerName) {
-        return container.lookup('controller:' + controllerName);
-      }
-    }
-  }
-});
 
 function verifyDependencies(controller) {
   var needs = get(controller, 'needs'),
       container = get(controller, 'container'),
-      dependency, satisfied = true;
+      satisfied = true,
+      dependency, i, l;
 
-  for (var i=0, l=needs.length; i<l; i++) {
+  for (i=0, l=needs.length; i<l; i++) {
     dependency = needs[i];
     if (dependency.indexOf(':') === -1) {
       dependency = "controller:" + dependency;
@@ -39,9 +23,17 @@ function verifyDependencies(controller) {
     }
   }
 
+  if (l > 0) {
+    // if needs then initialize controllers proxy
+    get(controller, 'controllers');
+  }
   return satisfied;
 }
 
+/**
+  @class ControllerMixin
+  @namespace Ember
+*/
 Ember.ControllerMixin.reopen({
   concatenatedProperties: ['needs'],
 
@@ -74,12 +66,12 @@ Ember.ControllerMixin.reopen({
   needs: [],
 
   init: function() {
-    this._super.apply(this, arguments);
-
     // Structure asserts to still do verification but not string concat in production
     if (!verifyDependencies(this)) {
       Ember.assert("Missing dependencies", false);
     }
+
+    this._super.apply(this, arguments);
   },
 
   controllerFor: function(controllerName) {
@@ -87,7 +79,39 @@ Ember.ControllerMixin.reopen({
     return Ember.controllerFor(get(this, 'container'), controllerName);
   },
 
+  /**
+    Stores the instances of other controllers available from within
+    this controller. Any controller listed by name in the `needs`
+    property will be accessible by name through this property.
+
+    ```javascript
+    App.CommentsController = Ember.ArrayController.extend({
+      needs: ['post'],
+      postTitle: function(){
+        var currentPost = this.get('controllers.post'); // instance of App.PostController
+        return currentPost.get('title');
+      }.property('controllers.post.title')
+    });
+    ```
+
+    @see {Ember.ControllerMixin#needs}
+    @property {Object} controllers
+    @default null
+  */
   controllers: Ember.computed(function() {
-    return ControllersProxy.create({ controller: this });
+    return {
+      needs: get(this, 'needs'),
+      container: get(this, 'container'),
+      unknownProperty: function(controllerName) {
+        var needs = this.needs,
+          dependency, i, l;
+        for (i=0, l=needs.length; i<l; i++) {
+          dependency = needs[i];
+          if (dependency === controllerName) {
+            return this.container.lookup('controller:' + controllerName);
+          }
+        }
+      }
+    };
   })
 });
